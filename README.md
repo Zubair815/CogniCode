@@ -388,55 +388,9 @@ main
 Branch names may become more specific as development progresses.
 
 Examples:
-
 feature/student-dashboard
 feature/socratic-engine
 feature/hint-system
 feature/dependency-score
 
 Completed and tested features will be integrated into the main development branch through appropriate commits and pull requests.
-
----
-
-👥 Team
-
-Name| Roll Number| Role
-Abdullah| BSEF23M526| Scrum Master / AI Pipeline & Agent Architecture Lead
-Muhammad Zubair| BSEF23M546| Product Owner / Frontend, Dashboard & Integration Lead
-
-Supervisor
-
-Sanam Ahmad
-Assistant Professor
-Faculty of Computing and Information Technology
-University of the Punjab, Lahore
-
----
-
-🎓 Academic Information
-
-Project: CogniCode — A Cognitive-Aware AI Teaching Assistant for Programming Education
-
-Degree: Bachelor of Science in Software Engineering
-
-Session: 2023–2027
-
-Institution: Faculty of Computing and Information Technology, University of the Punjab, Lahore
-
-FYDP Group ID: BSEF23-63
-
----
-
-📈 Project Status
-
-Status: In Development
-
-The system is being developed incrementally using Agile Scrum. Features, architecture, documentation, testing, and deployment information will be updated as development progresses.
-
----
-
-📄 License
-
-This project is developed as an academic Final Year Design Project.
-
-Licensing and distribution terms will be finalized by the project team.
