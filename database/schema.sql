@@ -1,0 +1,1 @@
+-- CogniCode Database Schema — to be implemented
