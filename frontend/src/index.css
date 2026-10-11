@@ -1,3 +1,160 @@
+/**
+ * Global stylesheet for CogniCode.
+ *
+ * Contains:
+ *   - Tailwind directives (base, components, utilities)
+ *   - CSS custom properties for dark and light themes
+ *   - Base resets and font smoothing
+ *   - Scrollbar styling
+ *
+ * The CSS variables here are the single source of truth for
+ * theming. Tailwind classes are then composed on top of them
+ * via utilities like bg-[color:var(--bg)].
+ *
+ * Created: 10/10/2026
+ * Author: Abdullah (BSEF23M526)
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* ============================================================
+   THEME VARIABLES
+   ============================================================ */
+:root,
+.dark {
+  --bg:         #080C1A;
+  --bg2:        #0D1324;
+  --bg3:        #111827;
+
+  --surface:    rgba(255, 255, 255, 0.04);
+  --surface-2:  rgba(255, 255, 255, 0.07);
+  --surface-3:  rgba(255, 255, 255, 0.11);
+
+  --border:     rgba(255, 255, 255, 0.07);
+  --border-2:   rgba(255, 255, 255, 0.13);
+
+  --text:       #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-subtle:#475569;
+
+  --primary:    #6366F1;
+  --primary-hi: #818CF8;
+  --violet:     #8B5CF6;
+
+  --success:    #10B981;
+  --warning:    #F59E0B;
+  --danger:     #EF4444;
+
+  --gradient-primary: linear-gradient(135deg, #6366F1, #8B5CF6);
+}
+
+.light {
+  --bg:         #F0F4F8;
+  --bg2:        #FFFFFF;
+  --bg3:        #E8EDF4;
+
+  --surface:    rgba(0, 0, 0, 0.03);
+  --surface-2:  rgba(0, 0, 0, 0.055);
+  --surface-3:  rgba(0, 0, 0, 0.09);
+
+  --border:     rgba(0, 0, 0, 0.08);
+  --border-2:   rgba(0, 0, 0, 0.14);
+
+  --text:       #0F172A;
+  --text-muted: #64748B;
+  --text-subtle:#94A3B8;
+
+  --primary:    #4F46E5;
+  --primary-hi: #4F46E5;
+  --violet:     #7C3AED;
+
+  --success:    #059669;
+  --warning:    #D97706;
+  --danger:     #DC2626;
+
+  --gradient-primary: linear-gradient(135deg, #4F46E5, #7C3AED);
+}
+
+
+/* ============================================================
+   BASE
+   ============================================================ */
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Inter", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Smooth theme transitions, but avoid animating transform. */
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  code, pre, .font-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  /* Focus ring consistency across the app. */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+
+/* ============================================================
+   SCROLLBARS
+   ============================================================ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-2);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-subtle);
+  }
+}
+
+
+/* ============================================================
+   UTILITY HELPERS
+   ============================================================ */
+@layer components {
+  /* The signature gradient text effect used across headings. */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Glassmorphic card surface. */
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+  }
+
+  /* Primary gradient button base — colors handled by Tailwind. */
+  .btn-primary-bg {
+    background: var(--gradient-primary);
+    color: #fff;
+  }
+}
