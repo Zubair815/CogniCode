@@ -24,7 +24,8 @@ Author: Abdullah (BSEF23M526)
 Created: 10/10/2026
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from core.rate_limit import enforce_login_limit, enforce_register_limit
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
@@ -56,10 +57,13 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 def register(
     payload: RegisterRequest,
+    request: Request,
     db: DBSession = Depends(get_db),
 ) -> TokenResponse:
     """
     Register a new user.
+
+    Rate-limited to 3 attempts per hour per IP.
 
     Validation performed here:
         - Email uniqueness (case-insensitive).
@@ -73,6 +77,10 @@ def register(
     Raises:
         HTTPException 409: if email or PUCIT ID is already registered.
     """
+    # --- Rate limit ---
+    enforce_register_limit(request)
+
+
     # --- Normalize inputs ---
     email = payload.email.lower().strip()
     pucit_id = payload.pucit_id.upper() if payload.pucit_id else None
@@ -147,6 +155,7 @@ def register(
 )
 def login(
     payload: LoginRequest,
+    request: Request,
     db: DBSession = Depends(get_db),
 ) -> TokenResponse:
     """
@@ -160,6 +169,10 @@ def login(
                            is returned for unknown user and wrong
                            password to prevent user enumeration.
     """
+    # --- Rate limit ---
+    enforce_login_limit(request)
+
+
     # --- Lookup by identifier (email OR PUCIT ID) ---
     identifier = payload.identifier.strip()
     email_candidate = identifier.lower()
