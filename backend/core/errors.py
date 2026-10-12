@@ -16,17 +16,8 @@ Purpose: Global exception handlers that shape every error response
          Having one shape for all errors means the frontend can
          render error states with a single component.
 
-         Design choices:
-         - HTTPException from FastAPI keeps its status code but is
-           reshaped.
-         - RequestValidationError (422) is grouped into a single
-           error with a summary and a per-field breakdown.
-         - Unhandled exceptions return 500 with a generic message;
-           the full traceback is logged server-side only (never
-           leaked to the client).
-
-Author: Abdullah (BSEF23M526)
 Created: 10/10/2026
+Updated: 10/10/2026
 """
 
 import logging
@@ -107,13 +98,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 async def integrity_error_handler(request: Request, exc: IntegrityError):
-    """
-    Handle DB integrity errors that escape the route layer.
-
-    Routes are expected to catch IntegrityError themselves when
-    they can give a specific message. This handler is a backstop
-    for anything that slips through.
-    """
+    """Backstop for integrity errors that escape the route layer."""
     logger.warning("Unhandled IntegrityError on %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -160,12 +145,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # REGISTRATION
 # =============================================================================
 def register_exception_handlers(app: FastAPI) -> None:
-    """
-    Attach all handlers to the FastAPI app.
-
-    Order matters: specific handlers must be registered before the
-    generic Exception handler.
-    """
+    """Attach all handlers to the FastAPI app."""
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
@@ -184,7 +164,6 @@ _CODE_MAP = {
     404: "not_found",
     409: "conflict",
     422: "validation_error",
-    429: "rate_limited",
     500: "internal_error",
 }
 

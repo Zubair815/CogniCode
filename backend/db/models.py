@@ -1,14 +1,14 @@
 """
 Module: backend.db.models
 Purpose: SQLAlchemy ORM models for CogniCode.
-         All tables, columns, relationships, and constraints
-         are defined here — one source of truth for the schema.
 
-         Data-integrity strategy:
-         - ACID "C" (Consistency) is enforced at the DATABASE level,
-           not only at the API layer. CheckConstraints and Unique
-           constraints reject invalid data even if the application
-           has a bug or is bypassed.
+         All tables, columns, relationships, and constraints are
+         defined here — one source of truth for the schema.
+
+         Design principles:
+         - ACID "C" (Consistency) is enforced at the DATABASE level
+           via CheckConstraints and Unique constraints, not only at
+           the API layer.
          - ForeignKeys use ON DELETE CASCADE so parent deletion
            atomically removes children (ACID "A").
          - UUID primary keys avoid sequence contention under
@@ -16,8 +16,12 @@ Purpose: SQLAlchemy ORM models for CogniCode.
          - server_default=func.now() delegates timestamps to the DB
            so they survive app restarts (ACID "D").
 
-Author: Abdullah (BSEF23M526)
-Created: 2026-02-20
+         V1 simplification (10/10/2026):
+         - Removed pucit_id column. CogniCode is open to learners
+           from any university, college, or self-study background.
+
+Created: 10/10/2026
+Updated: 10/10/2026
 """
 
 import uuid
@@ -44,15 +48,10 @@ from db.session import Base
 # =============================================================================
 # ENUM VALUES
 # =============================================================================
-# Using named PostgreSQL enums so values are stable across migrations
-# and visible in DB introspection tools.
-
 USER_ROLES = ("student", "instructor")
 DEPENDENCY_BANDS = ("low", "moderate", "high")
 INTERACTION_INTENTS = ("concept", "code_request", "debug", "quiz")
 
-# Bounds used in CheckConstraints — kept as constants to avoid
-# magic numbers scattered across the file.
 CDS_MIN = 0.0
 CDS_MAX = 100.0
 HINT_LEVEL_MIN = 0
@@ -78,10 +77,6 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(Text, nullable=False)
     role = Column(Enum(*USER_ROLES, name="user_role"), nullable=False)
-
-    # Optional for PUCIT-affiliated users (students/instructors).
-    # NULL for independent learners.
-    pucit_id = Column(String(20), unique=True, nullable=True, index=True)
 
     preferred_language = Column(String(50), default="Python", nullable=False)
     institution = Column(String(200), nullable=True)
@@ -119,9 +114,6 @@ class User(Base):
             "length(name) >= 2",
             name="users_name_min_length",
         ),
-        # PostgreSQL case-insensitive email regex. Rejects obvious
-        # malformed emails at the DB level, providing defense in
-        # depth behind Pydantic validation.
         CheckConstraint(
             r"email ~* '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'",
             name="users_email_format",
@@ -133,15 +125,11 @@ class User(Base):
 
 
 # =============================================================================
-# INSTRUCTOR COURSES (Enrollment mapping)
+# INSTRUCTOR COURSES
 # =============================================================================
 class InstructorCourse(Base):
     """
     Maps an instructor to a course and its enrolled students.
-
-    A student can be enrolled in multiple courses; an instructor
-    can teach multiple courses. Enrollment is via course code —
-    no separate join table needed since we store UUIDs in an array.
     """
 
     __tablename__ = "instructor_courses"
@@ -158,8 +146,6 @@ class InstructorCourse(Base):
     course_code = Column(String(20), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
 
-    # Array of student UUIDs enrolled in this course.
-    # PostgreSQL-native ARRAY — simple and fast at our scale.
     enrolled_students = Column(
         ARRAY(UUID(as_uuid=True)), default=list, nullable=False
     )
@@ -168,18 +154,13 @@ class InstructorCourse(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # --- Relationships ---
     instructor = relationship("User", back_populates="taught_courses")
 
-    # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
         CheckConstraint(
             "length(course_name) >= 3",
             name="instructor_courses_name_min_length",
         ),
-        # Course codes are uppercase alphanumeric with hyphens
-        # (e.g., CS301, OOP-B, DS-A1). This keeps codes URL-safe
-        # and predictable when displayed to students.
         CheckConstraint(
             r"course_code ~ '^[A-Z0-9\-]+$'",
             name="instructor_courses_code_format",
@@ -194,13 +175,7 @@ class InstructorCourse(Base):
 # SESSIONS
 # =============================================================================
 class Session(Base):
-    """
-    A single tutoring session between a student and CogniCode.
-
-    A session begins when a student starts a new topic and ends
-    when they submit their reflection. Stores aggregated signals
-    used to compute the Cognitive Dependency Score.
-    """
+    """A single tutoring session between a student and CogniCode."""
 
     __tablename__ = "sessions"
 
@@ -219,7 +194,6 @@ class Session(Base):
     )
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
-    # --- Aggregated session metrics (populated as session progresses) ---
     dependency_score = Column(Float, default=0.0, nullable=False)
     dependency_band = Column(
         Enum(*DEPENDENCY_BANDS, name="dependency_band"), nullable=True
@@ -231,7 +205,6 @@ class Session(Base):
 
     reflection_stored = Column(Boolean, default=False, nullable=False)
 
-    # --- Relationships ---
     student = relationship("User", back_populates="sessions")
     interactions = relationship(
         "Interaction", back_populates="session", cascade="all, delete-orphan"
@@ -246,7 +219,6 @@ class Session(Base):
         cascade="all, delete-orphan",
     )
 
-    # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
         CheckConstraint(
             f"dependency_score >= {CDS_MIN} AND dependency_score <= {CDS_MAX}",
@@ -274,12 +246,7 @@ class Session(Base):
 # INTERACTIONS
 # =============================================================================
 class Interaction(Base):
-    """
-    A single message exchange within a session.
-
-    Every student message + system response is logged here for
-    audit trail, memory agent, and CDS computation.
-    """
+    """A single message exchange within a session."""
 
     __tablename__ = "interactions"
 
@@ -304,17 +271,15 @@ class Interaction(Base):
         Enum(*INTERACTION_INTENTS, name="interaction_intent"), nullable=True
     )
     attempt_detected = Column(Boolean, default=False, nullable=False)
-    hint_level_given = Column(Integer, nullable=True)  # 0–5, NULL if not a hint
-    time_since_last = Column(Integer, nullable=True)   # seconds since previous interaction
+    hint_level_given = Column(Integer, nullable=True)
+    time_since_last = Column(Integer, nullable=True)
 
     timestamp = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # --- Relationships ---
     session = relationship("Session", back_populates="interactions")
 
-    # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
         CheckConstraint(
             f"hint_level_given IS NULL OR "
@@ -336,11 +301,7 @@ class Interaction(Base):
 # QUIZ RESULTS
 # =============================================================================
 class QuizResult(Base):
-    """
-    Stores the result of a concept quiz taken at the end of a topic.
-
-    Quiz scores are one of the six signals used in the CDS formula.
-    """
+    """Result of a concept quiz taken at the end of a topic."""
 
     __tablename__ = "quiz_results"
 
@@ -359,7 +320,7 @@ class QuizResult(Base):
     )
 
     topic = Column(String(200), nullable=False)
-    score = Column(Integer, nullable=False)          # correct answers
+    score = Column(Integer, nullable=False)
     total_questions = Column(Integer, nullable=False)
     passed = Column(Boolean, nullable=False)
 
@@ -367,11 +328,9 @@ class QuizResult(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # --- Relationships ---
     student = relationship("User", back_populates="quiz_results")
     session = relationship("Session", back_populates="quiz_results")
 
-    # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
         CheckConstraint(
             "score >= 0 AND score <= total_questions",
@@ -391,13 +350,7 @@ class QuizResult(Base):
 # REFLECTIONS
 # =============================================================================
 class Reflection(Base):
-    """
-    Mandatory end-of-session reflection entries.
-
-    Reflections are immutable once stored — audit trail requirement (BR-12).
-    Minimum 20-word enforcement is done at the API layer; the DB enforces
-    a minimum character count as defense in depth (BR-05).
-    """
+    """Mandatory end-of-session reflection entries."""
 
     __tablename__ = "reflections"
 
@@ -422,15 +375,9 @@ class Reflection(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    # --- Relationships ---
     student = relationship("User", back_populates="reflections")
     session = relationship("Session", back_populates="reflection")
 
-    # --- Integrity Constraints (ACID "C") ---
-    # BR-05: reflection responses must be at least 20 words.
-    # We approximate "20 words" as 100 characters at the DB level
-    # (a 5-char avg per word). The API enforces the exact 20-word
-    # count; the DB constraint is a backstop.
     __table_args__ = (
         CheckConstraint(
             "length(learned_today) >= 100",
@@ -450,12 +397,7 @@ class Reflection(Base):
 # DEPENDENCY HISTORY
 # =============================================================================
 class DependencyHistory(Base):
-    """
-    Daily snapshots of a student's CDS score for trend charts.
-
-    One row per student per day. Populated by a scheduled job or
-    on session end. Trend dashboard reads from here.
-    """
+    """Daily snapshots of a student's CDS score for trend charts."""
 
     __tablename__ = "dependency_history"
 
@@ -476,10 +418,8 @@ class DependencyHistory(Base):
     )
     session_count = Column(Integer, default=0, nullable=False)
 
-    # --- Relationships ---
     student = relationship("User", back_populates="dependency_history")
 
-    # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
         UniqueConstraint(
             "student_id", "date",

@@ -3,7 +3,7 @@ Module: backend.db.session
 Purpose: SQLAlchemy engine, session factory, and declarative base.
          Provides a `get_db()` dependency for FastAPI routes.
 Author: Abdullah (BSEF23M526)
-Created: 2026-02-20
+Created: 10/10/2026
 """
 
 from typing import Generator

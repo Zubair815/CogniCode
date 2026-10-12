@@ -1,67 +1,78 @@
 /**
- * Temporary smoke test for the component library.
- * Will be replaced with real routing in Step 0.12.
+ * App router.
+ *
+ * Routes:
+ *   /                     → Landing (public)
+ *   /login                → Login (public)
+ *   /register             → Register (public)
+ *   /forgot-password      → ForgotPassword (public)
+ *   /student/dashboard    → Dashboard (student, protected)
+ *   /instructor/dashboard → Dashboard (instructor, protected)
+ *   *                     → redirect to /login
  *
  * Created: 10/10/2026
- * Author: Abdullah (BSEF23M526)
+ * Updated: 10/10/2026
  */
 
-import { useTheme } from "./context/ThemeContext.jsx";
-import Button from "./components/ui/Button.jsx";
-import Input from "./components/ui/Input.jsx";
-import Card from "./components/ui/Card.jsx";
-import Badge from "./components/ui/Badge.jsx";
-import Logo from "./components/brand/Logo.jsx";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+
+import Landing from "./pages/Landing.jsx";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
+import { ROUTES } from "./constants/routes.js";
+
+
+function ProtectedRoute({ requiredRole, children }) {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
+  if (requiredRole && user.role !== requiredRole) {
+    return (
+      <Navigate
+        to={
+          user.role === "student"
+            ? ROUTES.STUDENT_DASHBOARD
+            : ROUTES.INSTRUCTOR_DASHBOARD
+        }
+        replace
+      />
+    );
+  }
+  return children;
+}
+
 
 export default function App() {
-  const { theme, toggleTheme } = useTheme();
-
   return (
-    <div className="min-h-screen p-8 bg-[color:var(--bg)] text-[color:var(--text)]">
-      <header className="max-w-3xl mx-auto flex items-center justify-between mb-8">
-        <Logo size={40} withWordmark />
-        <Button variant="secondary" size="sm" onClick={toggleTheme}>
-          {theme === "dark" ? "Switch to Light" : "Switch to Dark"}
-        </Button>
-      </header>
+    <BrowserRouter>
+      <Routes>
+        <Route path={ROUTES.LANDING} element={<Landing />} />
+        <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.REGISTER} element={<Register />} />
+        <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
 
-      <main className="max-w-3xl mx-auto space-y-6">
-        <Card title="Buttons">
-          <div className="flex flex-wrap gap-3">
-            <Button>Primary</Button>
-            <Button variant="secondary">Secondary</Button>
-            <Button variant="ghost">Ghost</Button>
-            <Button variant="danger">Danger</Button>
-            <Button loading>Loading</Button>
-          </div>
-        </Card>
+        <Route
+          path={ROUTES.STUDENT_DASHBOARD}
+          element={
+            <ProtectedRoute requiredRole="student">
+              <Dashboard role="student" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.INSTRUCTOR_DASHBOARD}
+          element={
+            <ProtectedRoute requiredRole="instructor">
+              <Dashboard role="instructor" />
+            </ProtectedRoute>
+          }
+        />
 
-        <Card title="Badges">
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="success">Low</Badge>
-            <Badge tone="warning">Moderate</Badge>
-            <Badge tone="danger">High</Badge>
-            <Badge tone="info">Session 7</Badge>
-            <Badge tone="violet">Hint L3</Badge>
-            <Badge>Neutral</Badge>
-          </div>
-        </Card>
-
-        <Card title="Form">
-          <Input label="Email" placeholder="you@pucit.edu.pk" />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            error="Password must be at least 8 characters"
-          />
-          <Input
-            label="Preferred Language"
-            placeholder="Python"
-            hint="Used to tailor code examples"
-          />
-        </Card>
-      </main>
-    </div>
+        <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

@@ -1,21 +1,19 @@
 """
 Module: backend.core
-Purpose: Cross-cutting concerns (rate limiting, error handling,
-         middleware) used across the application.
+Purpose: Cross-cutting concerns (middleware, error handling)
+         used across the application.
+
+         Rate limiting was removed for V1 and will return in V2
+         with an email-aware policy.
+
+Created: 10/10/2026
+Updated: 10/10/2026
 """
 
 from core.errors import register_exception_handlers
 from core.middleware import RequestIdMiddleware
-from core.rate_limit import (
-    enforce_login_limit,
-    enforce_register_limit,
-    reset_all as reset_rate_limits,
-)
 
 __all__ = [
     "register_exception_handlers",
     "RequestIdMiddleware",
-    "enforce_login_limit",
-    "enforce_register_limit",
-    "reset_rate_limits",
 ]

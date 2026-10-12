@@ -3,30 +3,25 @@ Module: backend.api.auth
 Purpose: Authentication REST endpoints.
 
          Endpoints:
-           POST /auth/register  — create a new account
-           POST /auth/login     — exchange credentials for a JWT
-           GET  /auth/me        — return the current user (JWT required)
-           POST /auth/logout    — client-side token invalidation
+           POST /auth/register          — create a new account
+           POST /auth/login             — exchange credentials for a JWT
+           GET  /auth/me                — current user (JWT required)
+           POST /auth/logout            — client-side token invalidation
+           POST /auth/forgot-password   — placeholder for reset flow
 
          Design choices:
-         - Registration and login return the same TokenResponse so
-           the frontend has one code path after auth succeeds.
-         - We return generic error messages for credential failures
-           ("Invalid credentials") to prevent user enumeration.
-         - PUCIT ID is stored uppercase and is unique when present.
-         - Passwords are hashed with bcrypt before insert (never
-           stored in plaintext, never logged).
-         - Rate limiting is deliberately NOT implemented in this
-           endpoint yet — it belongs in middleware (Step 0.10 will
-           wire it). This keeps the endpoint focused on correctness.
+         - Registration and login return the same TokenResponse.
+         - Generic error messages for credential failures to prevent
+           user enumeration.
+         - Passwords are hashed with bcrypt before insert.
+         - Rate limiting was removed for V1 and will return in V2
+           with an email-aware policy.
 
-Author: Abdullah (BSEF23M526)
 Created: 10/10/2026
+Updated: 10/10/2026
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from core.rate_limit import enforce_login_limit, enforce_register_limit
-from sqlalchemy import or_
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
@@ -36,6 +31,8 @@ from auth.security import hash_password, verify_password
 from db.models import User
 from db.session import get_db
 from schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     RegisterRequest,
     TokenResponse,
@@ -57,61 +54,31 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 def register(
     payload: RegisterRequest,
-    request: Request,
     db: DBSession = Depends(get_db),
 ) -> TokenResponse:
     """
     Register a new user.
 
-    Rate-limited to 3 attempts per hour per IP.
-
-    Validation performed here:
-        - Email uniqueness (case-insensitive).
-        - PUCIT ID uniqueness (if provided).
-        - Password hashed with bcrypt.
-
-    Returns:
-        TokenResponse with a freshly minted JWT and the public
-        user object.
+    - Email uniqueness (case-insensitive).
+    - Password hashed with bcrypt.
 
     Raises:
-        HTTPException 409: if email or PUCIT ID is already registered.
+        HTTPException 409: if the email is already registered.
     """
-    # --- Rate limit ---
-    enforce_register_limit(request)
-
-
-    # --- Normalize inputs ---
     email = payload.email.lower().strip()
-    pucit_id = payload.pucit_id.upper() if payload.pucit_id else None
 
-    # --- Check for existing user (email OR pucit_id) ---
-    # We do this check before insert so we can return a friendly
-    # message. The DB UNIQUE constraint is the authoritative guard;
-    # the IntegrityError handler below catches the race condition.
-    conditions = [User.email == email]
-    if pucit_id:
-        conditions.append(User.pucit_id == pucit_id)
-
-    existing = db.query(User).filter(or_(*conditions)).first()
+    existing = db.query(User).filter(User.email == email).first()
     if existing is not None:
-        if existing.email == email:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An account with this email already exists.",
-            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this PUCIT ID already exists.",
+            detail="An account with this email already exists.",
         )
 
-    # --- Create the user ---
     new_user = User(
         name=payload.name.strip(),
         email=email,
         password_hash=hash_password(payload.password),
         role=payload.role,
-        pucit_id=pucit_id,
         preferred_language=payload.preferred_language.strip() or "Python",
         institution=payload.institution.strip() if payload.institution else None,
     )
@@ -121,8 +88,6 @@ def register(
     try:
         db.commit()
     except IntegrityError as exc:
-        # Race condition: another request inserted the same email
-        # or PUCIT ID between our check and our commit.
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -131,7 +96,6 @@ def register(
 
     db.refresh(new_user)
 
-    # --- Issue token ---
     token = create_access_token(
         user_id=new_user.id,
         role=new_user.role,
@@ -155,50 +119,26 @@ def register(
 )
 def login(
     payload: LoginRequest,
-    request: Request,
     db: DBSession = Depends(get_db),
 ) -> TokenResponse:
     """
-    Authenticate a user by email OR PUCIT ID + password.
-
-    Returns:
-        TokenResponse with a fresh JWT and the public user object.
+    Authenticate a user by email + password.
 
     Raises:
-        HTTPException 401: on invalid credentials. The same message
-                           is returned for unknown user and wrong
+        HTTPException 401: on invalid credentials. Same message is
+                           returned for unknown user and wrong
                            password to prevent user enumeration.
     """
-    # --- Rate limit ---
-    enforce_login_limit(request)
+    email = payload.identifier.strip().lower()
 
+    user = db.query(User).filter(User.email == email).first()
 
-    # --- Lookup by identifier (email OR PUCIT ID) ---
-    identifier = payload.identifier.strip()
-    email_candidate = identifier.lower()
-    pucit_candidate = identifier.upper()
-
-    user = (
-        db.query(User)
-        .filter(
-            or_(
-                User.email == email_candidate,
-                User.pucit_id == pucit_candidate,
-            )
-        )
-        .first()
-    )
-
-    # --- Verify credentials ---
-    # Use a single generic error message for both cases so an
-    # attacker cannot tell whether the account exists.
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials.",
         )
 
-    # --- Issue token ---
     token = create_access_token(
         user_id=user.id,
         role=user.role,
@@ -221,13 +161,7 @@ def login(
     summary="Return the currently authenticated user",
 )
 def me(current_user: User = Depends(get_current_user)) -> UserResponse:
-    """
-    Return the authenticated user's public profile.
-
-    The heavy lifting (token parsing, DB lookup, existence check)
-    happens in `get_current_user`. This endpoint simply serializes
-    the result.
-    """
+    """Return the authenticated user's public profile."""
     return UserResponse.model_validate(current_user)
 
 
@@ -241,13 +175,34 @@ def me(current_user: User = Depends(get_current_user)) -> UserResponse:
 )
 def logout(current_user: User = Depends(get_current_user)) -> dict:
     """
-    Stateless logout.
-
-    Since we issue stateless JWTs, the server does not need to do
-    anything except confirm the request. The client must discard
-    the token. Endpoint exists so:
-        - The frontend has a canonical "logout" URL.
-        - We can add token blacklisting or audit logging later
-          without changing the frontend.
+    Stateless logout. Server-side token blacklisting is deferred
+    to a future release.
     """
     return {"detail": "Logged out."}
+
+
+# =============================================================================
+# POST /auth/forgot-password
+# =============================================================================
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Request a password reset link",
+)
+def forgot_password(payload: ForgotPasswordRequest) -> ForgotPasswordResponse:
+    """
+    Placeholder endpoint for password reset.
+
+    V1 behavior:
+        - Always returns a generic success message regardless of
+          whether the email exists. This prevents user enumeration.
+        - In development, the reset token is logged to the server
+          console (implemented in V2).
+
+    V2 behavior:
+        - Generate reset token, send email, verify on confirmation.
+    """
+    return ForgotPasswordResponse(
+        detail="If an account exists for that email, a reset link has been sent."
+    )

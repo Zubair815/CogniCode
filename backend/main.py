@@ -9,8 +9,8 @@ Purpose: FastAPI application entry point.
            - API routers (auth first; more to follow)
            - Root and health endpoints
 
-Author: Abdullah (BSEF23M526)
 Created: 10/10/2026
+Updated: 10/10/2026
 """
 
 import logging
@@ -23,9 +23,6 @@ from config import get_settings
 from core import RequestIdMiddleware, register_exception_handlers
 
 
-# --- Logging ---
-# Basic config so errors show up in the console with timestamps.
-# In production, replace with structured logging (JSON).
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -34,7 +31,6 @@ logging.basicConfig(
 settings = get_settings()
 
 
-# --- Application ---
 app = FastAPI(
     title=settings.app_name,
     description="A Cognitive-Aware AI Teaching Assistant for Programming Education",
@@ -44,7 +40,6 @@ app = FastAPI(
 )
 
 
-# --- Middleware (order matters — outermost first) ---
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -52,19 +47,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Request-ID"],  # so frontend can read the request ID
+    expose_headers=["X-Request-ID"],
 )
 
-
-# --- Global error handlers ---
 register_exception_handlers(app)
 
-
-# --- Routers ---
 app.include_router(auth_router)
 
 
-# --- Meta ---
 @app.get("/", tags=["Meta"])
 def root() -> dict:
     """Return basic project metadata."""
