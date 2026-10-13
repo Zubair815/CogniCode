@@ -18,7 +18,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth_router
+from api import auth_router, session_router
 from config import get_settings
 from core import RequestIdMiddleware, register_exception_handlers
 
@@ -53,6 +53,7 @@ app.add_middleware(
 register_exception_handlers(app)
 
 app.include_router(auth_router)
+app.include_router(session_router)
 
 
 @app.get("/", tags=["Meta"])
