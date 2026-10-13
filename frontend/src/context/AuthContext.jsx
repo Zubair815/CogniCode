@@ -1,22 +1,7 @@
 /**
  * AuthContext
- * -----------
- * Holds the authenticated user in memory for the entire app.
- *
- * Flow:
- *   - login(identifier, password)   → calls authService.login,
- *                                     stores token + user
- *   - register(payload)             → calls authService.register,
- *                                     stores token + user
- *   - logout()                      → clears token + user
- *   - On any 401 from the API, the api client fires onUnauthorized,
- *     which clears state here automatically.
- *
- * The token lives in the api module's memory (see services/api.js),
- * not in this context. This keeps a single source of truth.
- *
  * Created: 10/10/2026
- * Author: Abdullah (BSEF23M526)
+ * Updated: 10/10/2026
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -29,14 +14,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  // --- Handle API-triggered logouts ---
+  // When the API fires 401, clear user state so protected routes
+  // redirect to /login.
   useEffect(() => {
     onUnauthorized(() => {
       setUser(null);
+      clearToken();
     });
   }, []);
 
-  // --- Mark the context as ready for consumption ---
   useEffect(() => {
     setBootstrapped(true);
   }, []);
@@ -55,15 +41,18 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  /**
+   * Logout is idempotent and never throws.
+   * Even if the server call fails, local state is cleared.
+   */
   const logout = useCallback(async () => {
     try {
       await authService.logout();
     } catch {
-      // Ignore network errors on logout — state is cleared either way.
-    } finally {
-      clearToken();
-      setUser(null);
+      // ignore — we still clear local state
     }
+    clearToken();
+    setUser(null);
   }, []);
 
   const value = useMemo(

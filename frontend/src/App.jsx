@@ -1,15 +1,6 @@
 /**
  * App router.
  *
- * Routes:
- *   /                     → Landing (public)
- *   /login                → Login (public)
- *   /register             → Register (public)
- *   /forgot-password      → ForgotPassword (public)
- *   /student/dashboard    → Dashboard (student, protected)
- *   /instructor/dashboard → Dashboard (instructor, protected)
- *   *                     → redirect to /login
- *
  * Created: 10/10/2026
  * Updated: 10/10/2026
  */
@@ -21,13 +12,13 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Chat from "./pages/Chat.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { ROUTES } from "./constants/routes.js";
 
 
 function ProtectedRoute({ requiredRole, children }) {
   const { user } = useAuth();
-
   if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
   if (requiredRole && user.role !== requiredRole) {
     return (
@@ -59,6 +50,14 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="student">
               <Dashboard role="student" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.STUDENT_CHAT}
+          element={
+            <ProtectedRoute requiredRole="student">
+              <Chat />
             </ProtectedRoute>
           }
         />
