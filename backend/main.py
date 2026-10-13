@@ -1,20 +1,3 @@
-"""
-Module: backend.main
-Purpose: FastAPI application entry point.
-
-         Wires together:
-           - CORS for the React frontend
-           - Request-ID middleware
-           - Global error handlers
-           - API routers (auth first; more to follow)
-           - Root and health endpoints
-
-Created: 10/10/2026
-Updated: 10/10/2026
-"""
-
-import logging
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,13 +7,7 @@ from config import get_settings
 from core import RequestIdMiddleware, register_exception_handlers
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-
 settings = get_settings()
-
 
 app = FastAPI(
     title=settings.app_name,
@@ -40,7 +17,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-
+# Middleware — order matters: outermost first.
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -60,7 +37,6 @@ app.include_router(websocket_router)
 
 @app.get("/", tags=["Meta"])
 def root() -> dict:
-    """Return basic project metadata."""
     return {
         "project": settings.app_name,
         "group": "BSEF23-63",
@@ -71,5 +47,4 @@ def root() -> dict:
 
 @app.get("/health", tags=["Meta"])
 def health() -> dict:
-    """Liveness probe for uptime checks."""
     return {"status": "ok"}

@@ -5,27 +5,30 @@
  * single hook. This is what the Chat page consumes directly.
  *
  * Responsibilities:
- *   - Load session + history on mount
+ *   - Load session + history on mount (cancellable)
  *   - Maintain the local message list (interactions)
  *   - Manage WS status and connection
  *   - Send messages and reconcile typing/response events
  *   - Surface errors uniformly
  *
- * Message shape used by the UI:
- *   {
- *     id: string,
- *     role: "student" | "assistant",
- *     content: string,
- *     timestamp: string,   // ISO
- *     intent?: string,
- *   }
- *
  * Created: 10/10/2026
+ * Updated: 10/10/2026
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import { chatService } from "../services/chatService.js";
 import useWebSocket from "./useWebSocket.js";
+
+
+function isCancel(err) {
+  return (
+    axios.isCancel?.(err) ||
+    err?.name === "CanceledError" ||
+    err?.code === "ERR_CANCELED"
+  );
+}
+
 
 export default function useChatSession(sessionId) {
   const [session, setSession] = useState(null);
@@ -34,19 +37,24 @@ export default function useChatSession(sessionId) {
   const [error, setError] = useState(null);
   const [assistantTyping, setAssistantTyping] = useState(false);
 
-  // Track a pending student message until its response arrives, so we
-  // can render optimistically and reconcile by interaction_id.
+  // Tracks the student message that is waiting for a response so we
+  // can render it optimistically when the assistant replies.
   const pendingRef = useRef(null);
 
   // --- Load session + history on mount ---
   useEffect(() => {
+    if (!sessionId) return;
+
+    const controller = new AbortController();
     let cancelled = false;
 
-    async function load() {
+    (async () => {
       setLoading(true);
       setError(null);
       try {
-        const history = await chatService.getSessionHistory(sessionId);
+        const history = await chatService.getSessionHistory(sessionId, {
+          signal: controller.signal,
+        });
         if (cancelled) return;
 
         setSession({ id: history.session_id, topic: history.topic });
@@ -69,21 +77,21 @@ export default function useChatSession(sessionId) {
         }
         setMessages(flat);
       } catch (err) {
-        if (!cancelled) setError(err.message || "Failed to load session.");
+        if (isCancel(err) || cancelled) return;
+        setError(err.message || "Could not load this session.");
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    if (sessionId) load();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [sessionId]);
 
   // --- WebSocket handlers ---
   const handleReady = useCallback((payload) => {
-    // Session topic might arrive via ready frame if REST hasn't yet.
     setSession((prev) => ({
       id: payload.session_id,
       topic: payload.topic,
@@ -106,7 +114,6 @@ export default function useChatSession(sessionId) {
       timestamp: new Date().toISOString(),
     };
 
-    // Reconcile with any pending optimistic student message.
     const pending = pendingRef.current;
     pendingRef.current = null;
 
@@ -134,15 +141,19 @@ export default function useChatSession(sessionId) {
     setAssistantTyping(false);
   }, []);
 
-  const { status, sendMessage: wsSend, endSession: wsEnd, lastError } =
-    useWebSocket({
-      sessionId,
-      onReady: handleReady,
-      onMessage: handleMessage,
-      onTyping: handleTyping,
-      onError: handleError,
-      onEnded: handleEnded,
-    });
+  const {
+    status,
+    sendMessage: wsSend,
+    endSession: wsEnd,
+    lastError,
+  } = useWebSocket({
+    sessionId,
+    onReady: handleReady,
+    onMessage: handleMessage,
+    onTyping: handleTyping,
+    onError: handleError,
+    onEnded: handleEnded,
+  });
 
   // Surface WS errors uniformly.
   useEffect(() => {
@@ -155,19 +166,13 @@ export default function useChatSession(sessionId) {
       const text = (content || "").trim();
       if (!text) return;
 
-      // Optimistic render of the student message happens when the
-      // assistant replies, so we store it as "pending".
       pendingRef.current = {
         id: `${Date.now()}`,
         content: text,
         timestamp: new Date().toISOString(),
       };
 
-      // Send via WS
-      const sent = wsSend(text);
-      if (!sent) {
-        // queued — will send on reconnect
-      }
+      wsSend(text);
     },
     [wsSend]
   );
@@ -175,6 +180,8 @@ export default function useChatSession(sessionId) {
   const end = useCallback(() => {
     wsEnd();
   }, [wsEnd]);
+
+  const clearError = useCallback(() => setError(null), []);
 
   return useMemo(
     () => ({
@@ -186,8 +193,8 @@ export default function useChatSession(sessionId) {
       assistantTyping,
       send,
       end,
-      clearError: () => setError(null),
+      clearError,
     }),
-    [session, messages, loading, error, status, assistantTyping, send, end]
+    [session, messages, loading, error, status, assistantTyping, send, end, clearError]
   );
 }

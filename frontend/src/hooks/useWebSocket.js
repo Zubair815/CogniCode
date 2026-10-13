@@ -55,6 +55,13 @@ export default function useWebSocket({
   const manualCloseRef = useRef(false);
   const handlersRef = useRef({ onReady, onMessage, onTyping, onError, onEnded });
 
+
+    // Reset error when sessionId changes — prevents stale errors
+  // from a previous session leaking into the new one.
+  useEffect(() => {
+    setLastError(null);
+  }, [sessionId]);
+  
   // Keep handlers fresh without restarting the socket.
   useEffect(() => {
     handlersRef.current = { onReady, onMessage, onTyping, onError, onEnded };
