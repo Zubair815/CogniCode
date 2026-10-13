@@ -40,9 +40,12 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 24
 
     # --- LLM (used later in Phase 3) ---
-    llm_provider: str = "claude"
+    # --- LLM ---
+    llm_provider: str = "ollama"          # "ollama" | "claude"
     llm_api_key: str = ""
     llm_model: str = "claude-3-5-sonnet-latest"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"
 
     # --- Cognitive Dependency Score Weights (BR-08) ---
     # Configurable so they can be tuned during evaluation without code changes.
