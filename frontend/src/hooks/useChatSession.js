@@ -1,16 +1,5 @@
 /**
  * useChatSession
- * --------------
- * Combines the session REST API with the WebSocket layer into a
- * single hook. This is what the Chat page consumes directly.
- *
- * Responsibilities:
- *   - Load session + history on mount (cancellable)
- *   - Maintain the local message list (interactions)
- *   - Manage WS status and connection
- *   - Send messages and reconcile typing/response events
- *   - Surface errors uniformly
- *
  * Created: 10/10/2026
  * Updated: 10/10/2026
  */
@@ -20,7 +9,6 @@ import axios from "axios";
 import { chatService } from "../services/chatService.js";
 import useWebSocket from "./useWebSocket.js";
 
-
 function isCancel(err) {
   return (
     axios.isCancel?.(err) ||
@@ -29,23 +17,22 @@ function isCancel(err) {
   );
 }
 
-
 export default function useChatSession(sessionId) {
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assistantTyping, setAssistantTyping] = useState(false);
+  const [attemptDetected, setAttemptDetected] = useState(false); // NEW
 
-  // Tracks the student message that is waiting for a response so we
-  // can render it optimistically when the assistant replies.
   const pendingRef = useRef(null);
+  const abortRef = useRef(null);
 
-  // --- Load session + history on mount ---
   useEffect(() => {
     if (!sessionId) return;
-
+    abortRef.current?.abort();
     const controller = new AbortController();
+    abortRef.current = controller;
     let cancelled = false;
 
     (async () => {
@@ -56,7 +43,6 @@ export default function useChatSession(sessionId) {
           signal: controller.signal,
         });
         if (cancelled) return;
-
         setSession({ id: history.session_id, topic: history.topic });
 
         const flat = [];
@@ -90,7 +76,6 @@ export default function useChatSession(sessionId) {
     };
   }, [sessionId]);
 
-  // --- WebSocket handlers ---
   const handleReady = useCallback((payload) => {
     setSession((prev) => ({
       id: payload.session_id,
@@ -99,12 +84,13 @@ export default function useChatSession(sessionId) {
     }));
   }, []);
 
-  const handleTyping = useCallback(() => {
-    setAssistantTyping(true);
-  }, []);
+  const handleTyping = useCallback(() => setAssistantTyping(true), []);
 
   const handleMessage = useCallback((payload) => {
     setAssistantTyping(false);
+    if (payload.attempt_detected !== undefined) {
+      setAttemptDetected(payload.attempt_detected); // Update attempt state
+    }
 
     const assistantMsg = {
       id: payload.interaction_id || `local-${Date.now()}`,
@@ -137,50 +123,37 @@ export default function useChatSession(sessionId) {
     setError(payload.message || "Something went wrong.");
   }, []);
 
-  const handleEnded = useCallback(() => {
-    setAssistantTyping(false);
-  }, []);
+  const handleEnded = useCallback(() => setAssistantTyping(false), []);
 
-  const {
-    status,
-    sendMessage: wsSend,
-    endSession: wsEnd,
-    lastError,
-  } = useWebSocket({
-    sessionId,
-    onReady: handleReady,
-    onMessage: handleMessage,
-    onTyping: handleTyping,
-    onError: handleError,
-    onEnded: handleEnded,
-  });
+  const { status, sendMessage: wsSend, endSession: wsEnd, lastError } =
+    useWebSocket({
+      sessionId,
+      onReady: handleReady,
+      onMessage: handleMessage,
+      onTyping: handleTyping,
+      onError: handleError,
+      onEnded: handleEnded,
+    });
 
-  // Surface WS errors uniformly.
   useEffect(() => {
     if (lastError) setError(lastError);
   }, [lastError]);
 
-  // --- Public send ---
   const send = useCallback(
     (content) => {
       const text = (content || "").trim();
       if (!text) return;
-
       pendingRef.current = {
         id: `${Date.now()}`,
         content: text,
         timestamp: new Date().toISOString(),
       };
-
       wsSend(text);
     },
     [wsSend]
   );
 
-  const end = useCallback(() => {
-    wsEnd();
-  }, [wsEnd]);
-
+  const end = useCallback(() => wsEnd(), [wsEnd]);
   const clearError = useCallback(() => setError(null), []);
 
   return useMemo(
@@ -191,10 +164,11 @@ export default function useChatSession(sessionId) {
       error,
       wsStatus: status,
       assistantTyping,
+      attemptDetected, // NEW
       send,
       end,
       clearError,
     }),
-    [session, messages, loading, error, status, assistantTyping, send, end, clearError]
+    [session, messages, loading, error, status, assistantTyping, attemptDetected, send, end, clearError]
   );
 }

@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, X, CheckCircle2, MessageCircleQuestion } from "lucide-react";
 
 import ChatHeader from "../components/chat/ChatHeader.jsx";
 import ChatInput from "../components/chat/ChatInput.jsx";
@@ -27,12 +27,12 @@ export default function Chat() {
     error,
     wsStatus,
     assistantTyping,
+    attemptDetected,
     send,
     end,
     clearError,
   } = useChatSession(sessionId);
 
-  // Redirect on fatal session errors so we don't leave the user stuck.
   useEffect(() => {
     if (!error) return;
     const fatal =
@@ -61,6 +61,21 @@ export default function Chat() {
         wsStatus={wsStatus}
         onEnd={() => setConfirmEnd(true)}
       />
+
+      {/* Attempt Status Bar */}
+      <div className="px-4 md:px-6 py-2 border-b border-[color:var(--border)] bg-[color:var(--surface)]">
+        {attemptDetected ? (
+          <div className="flex items-center gap-2 text-xs font-medium text-[color:var(--success)]">
+            <CheckCircle2 size={14} />
+            Attempt detected. The tutor will now guide you forward.
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs font-medium text-[color:var(--warning)]">
+            <MessageCircleQuestion size={14} />
+            Awaiting attempt. The tutor will ask guiding questions until you try.
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className="mx-4 md:mx-6 mt-3 px-3.5 py-2.5 rounded-lg bg-[color:var(--danger)]/10 border border-[color:var(--danger)]/30 flex items-start gap-2 text-xs text-[color:var(--danger)]">

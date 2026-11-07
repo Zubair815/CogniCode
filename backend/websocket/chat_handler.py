@@ -306,6 +306,7 @@ async def _handle_chat(
         "type": "response",
         "content": response_text,
         "intent": state.get("intent"),
+        "attempt_detected": state.get("attempt_detected", False),
         "interaction_id": str(interaction.id),
         "elapsed_seconds": state.get("metadata", {}).get("elapsed_seconds"),
     })
