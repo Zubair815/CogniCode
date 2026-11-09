@@ -70,9 +70,10 @@ def _load_session(session_id: UUID, user: User, db: DBSession) -> Session:
     return session
 
 
-def _recent_history(db: DBSession, session_id: UUID, limit: int = 10):
+def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
     """
     Return the last N interactions formatted for the agent context.
+    We fetch the most recent rows, then reverse to chronological order.
     """
     rows = (
         db.query(Interaction)
@@ -81,7 +82,7 @@ def _recent_history(db: DBSession, session_id: UUID, limit: int = 10):
         .limit(limit)
         .all()
     )
-    rows.reverse()  # chronological order
+    rows.reverse()  # chronological order (oldest first)
 
     history = []
     for row in rows:

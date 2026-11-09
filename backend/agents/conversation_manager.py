@@ -37,6 +37,7 @@ _CONCEPT_PATTERNS = [
     r"\bexplain\b",
     r"\bwhat (is|are|does)\b",
     r"\bdifference between\b",
+    r"\bhelp me understand\b",
 ]
 
 # --- Strict Attempt Detection Patterns ---
