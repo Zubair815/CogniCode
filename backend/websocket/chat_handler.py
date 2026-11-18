@@ -249,7 +249,7 @@ async def _handle_chat(
         message=content,
         history=_recent_history(db, session.id),
         preferred_language=user.preferred_language or "Python",
-        current_hint_level=session.max_hint_level or 0,
+        current_hint_level=getattr(session, "max_hint_level", 0) or 0,
     )
 
     # Execute multi-agent LangGraph orchestration
@@ -290,7 +290,7 @@ async def _handle_chat(
     # Update session aggregates
     if state.get("intent") == "code_request":
         session.solution_requests = (session.solution_requests or 0) + 1
-    if hint_level_given and hint_level_given > (session.max_hint_level or 0):
+    if hint_level_given and hint_level_given > (getattr(session, "max_hint_level", 0) or 0):
         session.max_hint_level = hint_level_given
 
     try:

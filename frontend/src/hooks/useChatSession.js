@@ -27,7 +27,6 @@ export default function useChatSession(sessionId) {
   const [hintLevel, setHintLevel] = useState(0);
   const [understandingCheckRequired, setUnderstandingCheckRequired] = useState(false);
 
-  const pendingRef = useRef(null);
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -101,29 +100,14 @@ export default function useChatSession(sessionId) {
     }
 
     const assistantMsg = {
-      id: payload.interaction_id || `local-${Date.now()}`,
+      id: payload.interaction_id || `assistant-${Date.now()}`,
       role: "assistant",
       content: payload.content,
       intent: payload.intent,
       timestamp: new Date().toISOString(),
     };
 
-    const pending = pendingRef.current;
-    pendingRef.current = null;
-
-    setMessages((prev) => {
-      const next = [...prev];
-      if (pending) {
-        next.push({
-          id: `student-${pending.id}`,
-          role: "student",
-          content: pending.content,
-          timestamp: pending.timestamp,
-        });
-      }
-      next.push(assistantMsg);
-      return next;
-    });
+    setMessages((prev) => [...prev, assistantMsg]);
   }, []);
 
   const handleError = useCallback((payload) => {
@@ -151,11 +135,17 @@ export default function useChatSession(sessionId) {
     (content) => {
       const text = (content || "").trim();
       if (!text) return;
-      pendingRef.current = {
-        id: `${Date.now()}`,
+
+      const studentMsg = {
+        id: `student-${Date.now()}`,
+        role: "student",
         content: text,
         timestamp: new Date().toISOString(),
       };
+
+      setMessages((prev) => [...prev, studentMsg]);
+      setAssistantTyping(true);
+      setError(null);
       wsSend(text);
     },
     [wsSend]

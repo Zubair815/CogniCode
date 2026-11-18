@@ -230,6 +230,17 @@ class Session(Base):
         ),
     )
 
+    @property
+    def max_hint_level(self) -> int:
+        return max(self.hint_levels_used) if self.hint_levels_used else 0
+
+    @max_hint_level.setter
+    def max_hint_level(self, level: int) -> None:
+        hints = list(self.hint_levels_used or [])
+        if level not in hints:
+            hints.append(level)
+            self.hint_levels_used = hints
+
     def __repr__(self) -> str:
         return f"<Session {self.id} topic={self.topic}>"
 
