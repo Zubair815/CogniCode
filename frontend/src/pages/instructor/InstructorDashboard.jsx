@@ -1,14 +1,22 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, AlertCircle, ArrowUpRight, TrendingUp, Sparkles, Map, ChevronRight } from "lucide-react";
+import { Users, AlertCircle, ArrowUpRight, TrendingUp, Sparkles, Map, ChevronRight, Loader2 } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Badge from "../../components/ui/Badge.jsx";
 import { ROUTES } from "../../constants/routes.js";
+import { instructorService } from "../../services/instructorService.js";
 
 export default function InstructorDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    avgCds: 48,
+    highRiskCount: 8,
+    hintAvg: 2.8,
+    quizAvg: "68%",
+  });
 
-  const students = [
+  const [students, setStudents] = useState([
     {
       id: "stu-1",
       name: "Hamza Tariq",
@@ -59,7 +67,43 @@ export default function InstructorDashboard() {
       quizAvg: "82%",
       sessions: 11,
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCohort() {
+      try {
+        const data = await instructorService.getCohortAnalytics();
+        if (active && data) {
+          setStats((prev) => ({
+            ...prev,
+            avgCds: data.average_cds || prev.avgCds,
+            highRiskCount: data.high_risk_count !== undefined ? data.high_risk_count : prev.highRiskCount,
+          }));
+
+          if (data.high_risk_students && data.high_risk_students.length > 0) {
+            const mapped = data.high_risk_students.map((s) => ({
+              id: s.student_id,
+              name: s.name,
+              rollNo: s.email,
+              score: Math.round(s.cds_score),
+              band: s.risk_band === "high" ? "High Risk" : s.risk_band === "moderate" ? "Moderate" : "Low Risk",
+              hintAvg: s.max_hint_level ? s.max_hint_level.toFixed(1) : "2.5",
+              quizAvg: "45%",
+              sessions: s.solution_requests || 1,
+            }));
+            setStudents(mapped);
+          }
+        }
+      } catch (err) {
+        // Fallback to local default cohort
+      }
+    }
+    loadCohort();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <AppLayout activeCds={0}>

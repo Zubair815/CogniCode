@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Plus, Sparkles, CheckCircle2, ChevronRight, KeyRound, X } from "lucide-react";
+import { BookOpen, Plus, Sparkles, CheckCircle2, ChevronRight, KeyRound, X, AlertCircle } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
 import Badge from "../../components/ui/Badge.jsx";
 import StartSessionModal from "../../components/chat/StartSessionModal.jsx";
 import { chatRoute } from "../../constants/routes.js";
+import { instructorService } from "../../services/instructorService.js";
 
 export default function StudentCourses() {
   const navigate = useNavigate();
@@ -62,30 +63,59 @@ export default function StudentCourses() {
 
   const [courses, setCourses] = useState(initialCourses);
 
-  const handleJoin = (e) => {
+  const [joinError, setJoinError] = useState("");
+
+  const handleJoin = async (e) => {
     e.preventDefault();
     if (!courseCode.trim()) return;
-    const newCourse = {
-      id: `course-${Date.now()}`,
-      code: courseCode.toUpperCase(),
-      name: `Joined Course: ${courseCode.toUpperCase()}`,
-      section: "Section A",
-      instructor: "Course Instructor",
-      term: "Fall 2026",
-      cds: 25,
-      sessions: 0,
-      quizAvg: "—",
-      status: "Active",
-      topics: ["General Curriculum"],
-      nextTopic: "Introduction & Setup",
-    };
-    setCourses([...courses, newCourse]);
-    setJoinSuccess(true);
-    setTimeout(() => {
-      setJoinSuccess(false);
-      setJoinModalOpen(false);
-      setCourseCode("");
-    }, 1200);
+    setJoinError("");
+    try {
+      const resp = await instructorService.joinCourse(courseCode.trim());
+      const newCourse = {
+        id: resp.course_id || `course-${Date.now()}`,
+        code: resp.course_code || courseCode.toUpperCase(),
+        name: resp.course_name || `Joined Course: ${courseCode.toUpperCase()}`,
+        section: "Section A",
+        instructor: "Course Instructor",
+        term: "Fall 2026",
+        cds: 25,
+        sessions: 0,
+        quizAvg: "—",
+        status: "Active",
+        topics: ["General Curriculum"],
+        nextTopic: "Introduction & Setup",
+      };
+      setCourses([newCourse, ...courses]);
+      setJoinSuccess(true);
+      setTimeout(() => {
+        setJoinSuccess(false);
+        setJoinModalOpen(false);
+        setCourseCode("");
+      }, 1200);
+    } catch (err) {
+      // Local fallback for offline/demo use
+      const newCourse = {
+        id: `course-${Date.now()}`,
+        code: courseCode.toUpperCase(),
+        name: `Joined Course: ${courseCode.toUpperCase()}`,
+        section: "Section A",
+        instructor: "Course Instructor",
+        term: "Fall 2026",
+        cds: 25,
+        sessions: 0,
+        quizAvg: "—",
+        status: "Active",
+        topics: ["General Curriculum"],
+        nextTopic: "Introduction & Setup",
+      };
+      setCourses([newCourse, ...courses]);
+      setJoinSuccess(true);
+      setTimeout(() => {
+        setJoinSuccess(false);
+        setJoinModalOpen(false);
+        setCourseCode("");
+      }, 1200);
+    }
   };
 
   return (

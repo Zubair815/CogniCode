@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { FileEdit, CheckCircle2, Clock, Sparkles, Send, Tag, BookMarked } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileEdit, CheckCircle2, Clock, Sparkles, Send, Tag, BookMarked, Loader2 } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
+import { instructorService } from "../../services/instructorService.js";
 
 export default function Reflections() {
   const [topic, setTopic] = useState("");
   const [takeaway, setTakeaway] = useState("");
   const [mistake, setMistake] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [reflections, setReflections] = useState([
     {
@@ -45,6 +47,33 @@ export default function Reflections() {
     },
   ]);
 
+  useEffect(() => {
+    let active = true;
+    async function fetchReflections() {
+      try {
+        const data = await instructorService.getStudentReflections();
+        if (active && data && data.length > 0) {
+          const mapped = data.map((r) => ({
+            id: r.id,
+            topic: r.topic || "Computer Science",
+            date: r.created_at ? new Date(r.created_at).toLocaleDateString() : "Recent",
+            cdsBand: "Verified Reflection",
+            takeaway: r.learned_today,
+            mistakeToAvoid: r.mistake_to_avoid,
+            tags: [r.topic || "Core CS"],
+          }));
+          setReflections(mapped);
+        }
+      } catch (err) {
+        // Fallback to local default reflections
+      }
+    }
+    fetchReflections();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!topic.trim() || !takeaway.trim() || !mistake.trim()) return;
@@ -53,7 +82,7 @@ export default function Reflections() {
       id: `ref-${Date.now()}`,
       topic,
       date: "Just now",
-      cdsBand: "Low Dependency",
+      cdsBand: "Self Reflection",
       takeaway,
       mistakeToAvoid: mistake,
       tags: [topic],

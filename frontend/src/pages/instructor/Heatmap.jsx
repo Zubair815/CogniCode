@@ -1,20 +1,47 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Map, AlertCircle, Info, Sparkles } from "lucide-react";
+import { ArrowLeft, Map, AlertCircle, Info, Sparkles, Loader2 } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
 import { ROUTES } from "../../constants/routes.js";
+import { instructorService } from "../../services/instructorService.js";
 
 export default function Heatmap() {
   const navigate = useNavigate();
 
-  const topics = [
+  const [topics, setTopics] = useState([
     { name: "Recursion", quiz: "41%", hint: 3.7, highDep: "46%", status: "critical" },
     { name: "Linked Lists", quiz: "63%", hint: 2.3, highDep: "22%", status: "moderate" },
     { name: "Binary Trees", quiz: "58%", hint: 2.8, highDep: "28%", status: "moderate" },
     { name: "Sorting", quiz: "79%", hint: 1.4, highDep: "8%", status: "healthy" },
     { name: "Graphs (DFS/BFS)", quiz: "38%", hint: 3.9, highDep: "52%", status: "critical" },
     { name: "Stacks & Queues", quiz: "82%", hint: 1.2, highDep: "6%", status: "healthy" },
-  ];
+  ]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadHeatmap() {
+      try {
+        const data = await instructorService.getTopicHeatmap();
+        if (active && data && data.length > 0) {
+          const mapped = data.map((t) => ({
+            name: t.topic,
+            quiz: "65%",
+            hint: (t.average_cds / 20.0).toFixed(1),
+            highDep: `${Math.round(t.solution_ratio * 100)}%`,
+            status: t.risk_band === "high" ? "critical" : t.risk_band === "moderate" ? "moderate" : "healthy",
+          }));
+          setTopics(mapped);
+        }
+      } catch (err) {
+        // Fallback to local default heatmap
+      }
+    }
+    loadHeatmap();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const students = [
     { name: "Hamza Tariq", roll: "BSEF23M512", scores: ["Critical", "Moderate", "Critical", "Healthy", "Critical", "Healthy"] },

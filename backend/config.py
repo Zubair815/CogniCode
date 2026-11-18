@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2"
     groq_model: str = "openai/gpt-oss-20b"
 
+    # --- Vector DB / Chroma ---
+    chroma_persist_dir: str = "./data/chroma"
+
     # --- Cognitive Dependency Score Weights (BR-08) ---
     # Configurable so they can be tuned during evaluation without code changes.
     cds_weight_solution_request: float = 0.25

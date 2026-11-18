@@ -22,6 +22,8 @@ from agents.debugging_coach import DebuggingCoach
 from agents.socratic_tutor import SocraticTutor
 from agents.hint_generator import HintGenerator
 from agents.assessment import AssessmentAgent
+from agents.memory import StudentMemoryAgent
+from agents.reflection import ReflectionAgent
 from agents.graph import tutoring_graph
 
 __all__ = [
@@ -36,5 +38,7 @@ __all__ = [
     "SocraticTutor",
     "HintGenerator",
     "AssessmentAgent",
+    "StudentMemoryAgent",
+    "ReflectionAgent",
     "tutoring_graph",
 ]

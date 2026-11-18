@@ -23,6 +23,7 @@ from agents.code_analysis import CodeAnalysisAgent
 from agents.conversation_manager import ConversationManager
 from agents.debugging_coach import DebuggingCoach
 from agents.hint_generator import HintGenerator
+from agents.memory import StudentMemoryAgent
 from agents.socratic_tutor import SocraticTutor
 from agents.state import AgentState
 
@@ -35,11 +36,24 @@ _socratic_tutor = SocraticTutor()
 _hint_generator = HintGenerator()
 _assessment_agent = AssessmentAgent()
 _debugging_coach = DebuggingCoach()
+_memory_agent = StudentMemoryAgent()
 
 
 # --- Node Callables ---
 async def code_analysis_node(state: AgentState) -> AgentState:
     return _code_analysis.process(state)
+
+
+async def memory_node(state: AgentState) -> AgentState:
+    profile = _memory_agent.personalize_context(state)
+    meta = dict(state.get("metadata") or {})
+    meta["student_profile"] = profile
+    state["metadata"] = meta
+    if profile.get("has_prior_history"):
+        summary = profile.get("memory_summary", "")
+        existing = state.get("system_guidance", "")
+        state["system_guidance"] = f"{existing}\n[Memory Profile]: {summary}".strip()
+    return state
 
 
 async def conversation_manager_node(state: AgentState) -> AgentState:
@@ -90,6 +104,7 @@ def build_tutoring_graph() -> StateGraph:
 
     # Register Nodes
     graph.add_node("code_analysis", code_analysis_node)
+    graph.add_node("memory", memory_node)
     graph.add_node("conversation_manager", conversation_manager_node)
     graph.add_node("socratic_tutor", socratic_tutor_node)
     graph.add_node("hint_generator", hint_generator_node)
@@ -99,8 +114,10 @@ def build_tutoring_graph() -> StateGraph:
     # Connect Edges:
     # 1. Parse code AST first
     graph.add_edge(START, "code_analysis")
-    # 2. Classify intent with AST metadata available
-    graph.add_edge("code_analysis", "conversation_manager")
+    # 2. Retrieve student memory & relevant bug traps
+    graph.add_edge("code_analysis", "memory")
+    # 3. Classify intent with AST & memory metadata available
+    graph.add_edge("memory", "conversation_manager")
 
     # 3. Conditional routing to specialized agent
     graph.add_conditional_edges(

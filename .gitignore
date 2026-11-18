@@ -47,6 +47,7 @@ logs/
 # ---------- ChromaDB ----------
 chroma_data/
 .chroma/
+data/
 
 # ---------- Uploads / Temp ----------
 uploads/

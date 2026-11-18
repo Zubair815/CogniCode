@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect
 
-from api import auth_router, session_router
+from api import auth_router, session_router, instructor_router
 from websocket import websocket_router
 from config import get_settings
 from core import RequestIdMiddleware, register_exception_handlers
@@ -42,6 +42,7 @@ register_exception_handlers(app)
 
 app.include_router(auth_router)
 app.include_router(session_router)
+app.include_router(instructor_router)
 app.include_router(websocket_router)
 
 
