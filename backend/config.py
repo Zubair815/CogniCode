@@ -61,9 +61,9 @@ class Settings(BaseSettings):
     cds_weight_quiz: float = 0.10
 
     # Pydantic settings configuration.
-    # Reads from .env file at project root; ignores extra env vars.
+    # Reads from .env file or backend/.env; ignores extra env vars.
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
