@@ -70,9 +70,10 @@ def _load_session(session_id: UUID, user: User, db: DBSession) -> Session:
     return session
 
 
-def _recent_history(db: DBSession, session_id: UUID, limit: int = 10):
+def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
     """
     Return the last N interactions formatted for the agent context.
+    We fetch the most recent rows, then reverse to chronological order.
     """
     rows = (
         db.query(Interaction)
@@ -81,7 +82,7 @@ def _recent_history(db: DBSession, session_id: UUID, limit: int = 10):
         .limit(limit)
         .all()
     )
-    rows.reverse()  # chronological order
+    rows.reverse()  # chronological order (oldest first)
 
     history = []
     for row in rows:
@@ -306,6 +307,7 @@ async def _handle_chat(
         "type": "response",
         "content": response_text,
         "intent": state.get("intent"),
+        "attempt_detected": state.get("attempt_detected", False),
         "interaction_id": str(interaction.id),
         "elapsed_seconds": state.get("metadata", {}).get("elapsed_seconds"),
     })
