@@ -6,7 +6,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authService } from "../services/authService.js";
-import { onUnauthorized, setToken, clearToken } from "../services/api.js";
+import { onUnauthorized, setToken, getToken, clearToken } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
@@ -24,7 +24,20 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    setBootstrapped(true);
+    async function restoreSession() {
+      const token = getToken();
+      if (token) {
+        try {
+          const profile = await authService.me();
+          setUser(profile);
+        } catch (err) {
+          clearToken();
+          setUser(null);
+        }
+      }
+      setBootstrapped(true);
+    }
+    restoreSession();
   }, []);
 
   const login = useCallback(async ({ identifier, password }) => {

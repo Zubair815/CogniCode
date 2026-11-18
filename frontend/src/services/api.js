@@ -9,11 +9,40 @@ import axios from "axios";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 let _token = null;
+try {
+  _token = typeof window !== "undefined" ? localStorage.getItem("cognicode_token") : null;
+} catch (e) {}
+
 let _onUnauthorized = null;
 
-export function setToken(token) { _token = token || null; }
-export function getToken() { return _token; }
-export function clearToken() { _token = null; }
+export function setToken(token) {
+  _token = token || null;
+  try {
+    if (token) {
+      localStorage.setItem("cognicode_token", token);
+    } else {
+      localStorage.removeItem("cognicode_token");
+    }
+  } catch (e) {}
+}
+
+export function getToken() {
+  if (!_token && typeof window !== "undefined") {
+    try {
+      _token = localStorage.getItem("cognicode_token") || null;
+    } catch (e) {}
+  }
+  return _token;
+}
+
+export function clearToken() {
+  _token = null;
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("cognicode_token");
+    }
+  } catch (e) {}
+}
 export function onUnauthorized(cb) { _onUnauthorized = cb; }
 
 const api = axios.create({
