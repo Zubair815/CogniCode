@@ -9,6 +9,7 @@ Created: 10/10/2026
 from typing import Generator
 
 from sqlalchemy import create_engine
+from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from config import get_settings
@@ -28,6 +29,13 @@ engine = create_engine(
     echo=False,
     future=True,
 )
+
+if engine.dialect.name == "sqlite":
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(connection, _record):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 # --- Session Factory ---

@@ -39,7 +39,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy import JSON, Uuid
 from sqlalchemy.orm import relationship
 
 from db.session import Base
@@ -72,7 +72,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(Text, nullable=False)
@@ -114,10 +114,7 @@ class User(Base):
             "length(name) >= 2",
             name="users_name_min_length",
         ),
-        CheckConstraint(
-            r"email ~* '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'",
-            name="users_email_format",
-        ),
+        CheckConstraint("length(email) >= 5", name="users_email_min_length"),
     )
 
     def __repr__(self) -> str:
@@ -134,9 +131,9 @@ class InstructorCourse(Base):
 
     __tablename__ = "instructor_courses"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     instructor_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -146,9 +143,7 @@ class InstructorCourse(Base):
     course_code = Column(String(20), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
 
-    enrolled_students = Column(
-        ARRAY(UUID(as_uuid=True)), default=list, nullable=False
-    )
+    enrolled_students = Column(JSON, default=list, nullable=False)
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -161,10 +156,7 @@ class InstructorCourse(Base):
             "length(course_name) >= 3",
             name="instructor_courses_name_min_length",
         ),
-        CheckConstraint(
-            r"course_code ~ '^[A-Z0-9\-]+$'",
-            name="instructor_courses_code_format",
-        ),
+        CheckConstraint("length(course_code) >= 2", name="instructor_courses_code_min_length"),
     )
 
     def __repr__(self) -> str:
@@ -179,9 +171,9 @@ class Session(Base):
 
     __tablename__ = "sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     student_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -198,7 +190,7 @@ class Session(Base):
     dependency_band = Column(
         Enum(*DEPENDENCY_BANDS, name="dependency_band"), nullable=True
     )
-    hint_levels_used = Column(ARRAY(Integer), default=list, nullable=False)
+    hint_levels_used = Column(JSON, default=list, nullable=False)
     solution_requests = Column(Integer, default=0, nullable=False)
     retry_count = Column(Integer, default=0, nullable=False)
     debugging_attempts = Column(Integer, default=0, nullable=False)
@@ -250,15 +242,15 @@ class Interaction(Base):
 
     __tablename__ = "interactions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     session_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     student_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -305,15 +297,15 @@ class QuizResult(Base):
 
     __tablename__ = "quiz_results"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     student_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     session_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -354,15 +346,15 @@ class Reflection(Base):
 
     __tablename__ = "reflections"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     student_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     session_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -401,9 +393,9 @@ class DependencyHistory(Base):
 
     __tablename__ = "dependency_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     student_id = Column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

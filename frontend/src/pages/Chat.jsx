@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, X, Bot } from "lucide-react";
 
 import ChatHeader from "../components/chat/ChatHeader.jsx";
 import ChatInput from "../components/chat/ChatInput.jsx";
@@ -53,6 +53,7 @@ export default function Chat() {
   }, [end, navigate]);
 
   const disabled = wsStatus !== "open";
+  const aiUnavailable = wsStatus === "error" || wsStatus === "closed";
 
   return (
     <div className="h-screen flex flex-col bg-[color:var(--bg)] text-[color:var(--text)]">
@@ -84,7 +85,19 @@ export default function Chat() {
           </div>
         </div>
       ) : (
+        <>
+        {aiUnavailable && (
+          <div className="mx-4 md:mx-6 mt-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-sm">
+            <div className="flex items-center gap-2 font-semibold"><Bot size={16} /> AI tutor is unavailable</div>
+            <p className="mt-1 text-[color:var(--text-muted)]">You can still present the session flow. The AI reply requires Ollama or an API key.</p>
+            <div className="mt-3 rounded-lg bg-[color:var(--surface-2)] p-3 text-xs text-[color:var(--text-muted)]">
+              Demo prompt: “Can you explain recursion?”<br />
+              Expected behavior: CogniCode guides the learner with a question before giving a complete solution.
+            </div>
+          </div>
+        )}
         <MessageList messages={messages} typing={assistantTyping} />
+        </>
       )}
 
       <ChatInput onSend={send} disabled={disabled || loading} />

@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect
 
 from api import auth_router, session_router
 from websocket import websocket_router
 from config import get_settings
 from core import RequestIdMiddleware, register_exception_handlers
+from db.session import Base, engine
+import db.models  # noqa: F401 — register ORM tables before local initialization
 
 
 settings = get_settings()
@@ -16,6 +19,13 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+@app.on_event("startup")
+def initialize_local_database() -> None:
+    """Create the small local demo schema when SQLite is selected."""
+    if engine.dialect.name == "sqlite":
+        Base.metadata.create_all(bind=engine)
 
 # Middleware — order matters: outermost first.
 app.add_middleware(RequestIdMiddleware)

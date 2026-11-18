@@ -12,6 +12,7 @@ from config import get_settings
 from llm.base import LLMClient, LLMError, LLMResponse
 from llm.ollama_client import OllamaClient
 from llm.claude_client import ClaudeClient
+from llm.groq_client import GroqClient
 
 
 _settings = get_settings()
@@ -27,6 +28,10 @@ def get_llm_client() -> LLMClient:
     provider = (_settings.llm_provider or "ollama").lower()
     if provider == "claude":
         return ClaudeClient()
+    if provider == "groq":
+        return GroqClient()
+    if provider != "ollama":
+        raise ValueError(f"Unsupported LLM_PROVIDER: {provider}")
     return OllamaClient()
 
 
@@ -36,5 +41,6 @@ __all__ = [
     "LLMResponse",
     "OllamaClient",
     "ClaudeClient",
+    "GroqClient",
     "get_llm_client",
 ]

@@ -52,3 +52,8 @@ chroma_data/
 uploads/
 temp/
 tmp/
+
+# ---------- SQLite / Local DB ----------
+*.db
+*.sqlite
+*.sqlite3

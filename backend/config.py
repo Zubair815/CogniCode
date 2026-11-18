@@ -31,21 +31,22 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     # --- Database ---
-    # Format: postgresql://user:password@host:port/dbname
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/cognicode"
+    # Set DATABASE_URL in backend/.env; no credentials are stored in source.
+    database_url: str = "sqlite:///./cognicode.db"
 
     # --- Authentication ---
-    jwt_secret: str = "CHANGE_THIS_IN_PRODUCTION"
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
 
     # --- LLM (used later in Phase 3) ---
     # --- LLM ---
-    llm_provider: str = "ollama"          # "ollama" | "claude"
+    llm_provider: str = "ollama"          # "ollama" | "claude" | "groq"
     llm_api_key: str = ""
     llm_model: str = "claude-3-5-sonnet-latest"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+    groq_model: str = "openai/gpt-oss-20b"
 
     # --- Cognitive Dependency Score Weights (BR-08) ---
     # Configurable so they can be tuned during evaluation without code changes.
