@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, X, Bot, CheckCircle2, MessageCircleQuestion } from "lucide-react";
+import { AlertCircle, X, Bot, CheckCircle2, MessageCircleQuestion, Lightbulb, Sparkles } from "lucide-react";
 
 import ChatHeader from "../components/chat/ChatHeader.jsx";
 import ChatInput from "../components/chat/ChatInput.jsx";
@@ -51,6 +51,8 @@ export default function Chat() {
     wsStatus,
     assistantTyping,
     attemptDetected,
+    hintLevel,
+    understandingCheckRequired,
     send,
     end,
     clearError,
@@ -86,20 +88,46 @@ export default function Chat() {
         onEnd={() => setConfirmEnd(true)}
       />
 
-      {/* Attempt Status Bar */}
-      <div className="px-4 md:px-6 py-2 border-b border-[color:var(--border)] bg-[color:var(--surface)]">
-        {attemptDetected ? (
-          <div className="flex items-center gap-2 text-xs font-medium text-[color:var(--success)]">
-            <CheckCircle2 size={14} />
-            Attempt detected. The tutor will now guide you forward.
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-xs font-medium text-[color:var(--warning)]">
-            <MessageCircleQuestion size={14} />
-            Awaiting attempt. The tutor will ask guiding questions until you try.
-          </div>
-        )}
+      {/* Attempt & Hint Status Bar */}
+      <div className="px-4 md:px-6 py-2.5 border-b border-[color:var(--border)] bg-[color:var(--surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {attemptDetected ? (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--success)]">
+              <CheckCircle2 size={14} />
+              Attempt detected — Guidance active
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--warning)]">
+              <MessageCircleQuestion size={14} />
+              Awaiting attempt — Socratic mode active
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-[color:var(--border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)] flex items-center gap-1">
+            <Lightbulb size={12} className={hintLevel > 0 ? "text-[color:var(--warning)]" : "opacity-40"} />
+            Hint Level: {hintLevel > 0 ? `${hintLevel}/5` : "None"}
+          </span>
+          <button
+            onClick={() => send("Can you give me a progressive hint?")}
+            disabled={disabled || loading}
+            className="text-[11px] font-semibold text-[color:var(--primary)] hover:underline flex items-center gap-1 disabled:opacity-40"
+          >
+            <Sparkles size={12} />
+            Ask for Hint
+          </button>
+        </div>
       </div>
+
+      {understandingCheckRequired && (
+        <div className="mx-4 md:mx-6 mt-2.5 px-3.5 py-2 rounded-xl bg-[color:var(--primary)]/10 border border-[color:var(--primary)]/30 flex items-center justify-between text-xs text-[color:var(--text)]">
+          <div className="flex items-center gap-2">
+            <Sparkles size={14} className="text-[color:var(--primary)] shrink-0" />
+            <span><strong>Conceptual Check Required:</strong> Reply with A, B, C, or D to unlock Level 3+ pseudocode.</span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mx-4 md:mx-6 mt-3 px-3.5 py-2.5 rounded-lg bg-[color:var(--danger)]/10 border border-[color:var(--danger)]/30 flex items-start gap-2 text-xs text-[color:var(--danger)]">

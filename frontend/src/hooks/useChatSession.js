@@ -23,7 +23,9 @@ export default function useChatSession(sessionId) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assistantTyping, setAssistantTyping] = useState(false);
-  const [attemptDetected, setAttemptDetected] = useState(false); // NEW
+  const [attemptDetected, setAttemptDetected] = useState(false);
+  const [hintLevel, setHintLevel] = useState(0);
+  const [understandingCheckRequired, setUnderstandingCheckRequired] = useState(false);
 
   const pendingRef = useRef(null);
   const abortRef = useRef(null);
@@ -89,7 +91,13 @@ export default function useChatSession(sessionId) {
   const handleMessage = useCallback((payload) => {
     setAssistantTyping(false);
     if (payload.attempt_detected !== undefined) {
-      setAttemptDetected(payload.attempt_detected); // Update attempt state
+      setAttemptDetected(payload.attempt_detected);
+    }
+    if (payload.hint_level !== undefined) {
+      setHintLevel(payload.hint_level);
+    }
+    if (payload.understanding_check_required !== undefined) {
+      setUnderstandingCheckRequired(payload.understanding_check_required);
     }
 
     const assistantMsg = {
@@ -164,11 +172,13 @@ export default function useChatSession(sessionId) {
       error,
       wsStatus: status,
       assistantTyping,
-      attemptDetected, // NEW
+      attemptDetected,
+      hintLevel,
+      understandingCheckRequired,
       send,
       end,
       clearError,
     }),
-    [session, messages, loading, error, status, assistantTyping, attemptDetected, send, end, clearError]
+    [session, messages, loading, error, status, assistantTyping, attemptDetected, hintLevel, understandingCheckRequired, send, end, clearError]
   );
 }

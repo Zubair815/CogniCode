@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CogniCode</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080C1A; --bg2:#0D1324; --bg3:#111827;
+  --sf:rgba(255,255,255,0.04); --sf2:rgba(255,255,255,0.07); --sf3:rgba(255,255,255,0.11);
+  --bd:rgba(255,255,255,0.07); --bd2:rgba(255,255,255,0.13);
+  --in:#6366F1; --inv:#818CF8; --in2:#4F46E5;
+  --vi:#8B5CF6; --vi2:#7C3AED;
+  --am:#F59E0B; --am2:#D97706; --aml:rgba(245,158,11,0.15);
+  --gr:#10B981; --grl:rgba(16,185,129,0.15);
+  --ye:#F59E0B; --yel:rgba(245,158,11,0.15);
+  --re:#EF4444; --rel:rgba(239,68,68,0.15);
+  --tx:#F1F5F9; --mu:#94A3B8; --su:#475569;
+  --sw:230px; --ra:14px;
+  --grd:linear-gradient(135deg,var(--in),var(--vi));
+  --grd2:linear-gradient(135deg,var(--am),#F97316);
+}
+/* ── LIGHT THEME ── */
+[data-theme="light"]{
+  --bg:#F0F4F8; --bg2:#FFFFFF; --bg3:#E8EDF4;
+  --sf:rgba(0,0,0,0.03); --sf2:rgba(0,0,0,0.055); --sf3:rgba(0,0,0,0.09);
+  --bd:rgba(0,0,0,0.08); --bd2:rgba(0,0,0,0.14);
+  --tx:#0F172A; --mu:#64748B; --su:#94A3B8;
+  --in:#4F46E5; --inv:#4F46E5; --in2:#4338CA;
+  --vi:#7C3AED; --vi2:#6D28D9;
+  --am:#D97706; --am2:#B45309; --aml:rgba(217,119,6,0.12);
+  --gr:#059669; --grl:rgba(5,150,105,0.12);
+  --ye:#D97706; --yel:rgba(217,119,6,0.12);
+  --re:#DC2626; --rel:rgba(220,38,38,0.12);
+  --grd:linear-gradient(135deg,#4F46E5,#7C3AED);
+  --grd2:linear-gradient(135deg,#D97706,#EA580C);
+}
+/* Sidebar stays dark in both themes — intentional design */
+[data-theme="light"] .sb{background:#1E1B4B !important;border-right:none}
+[data-theme="light"] .sb .ni{color:rgba(255,255,255,.55)}
+[data-theme="light"] .sb .ni:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.85)}
+[data-theme="light"] .sb .ni.on{background:rgba(255,255,255,.16);color:#fff}
+[data-theme="light"] .sb .sb-logo-t h2{color:#fff}
+[data-theme="light"] .sb .sb-logo-t p{color:rgba(255,255,255,.4)}
+[data-theme="light"] .sb .sb-usr-t .nm{color:#fff}
+[data-theme="light"] .sb .sb-usr-t .rl{color:rgba(255,255,255,.4)}
+[data-theme="light"] .sb .nsep{background:rgba(255,255,255,.1)}
+[data-theme="light"] .sb-cds{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12)}
+[data-theme="light"] .sb-cds-lbl{color:rgba(255,255,255,.4)}
+[data-theme="light"] .sb-cds-bar{background:rgba(255,255,255,.1)}
+[data-theme="light"] .sb-cds-sc{color:#fff}
+/* Auth left panel stays gradient */
+[data-theme="light"] .auth-l{background:linear-gradient(135deg,#1a1040 0%,#0f0a2e 50%,#1a0a3e 100%)}
+/* Topbar light */
+[data-theme="light"] .tb{background:rgba(255,255,255,.9);border-bottom:1px solid rgba(0,0,0,.08)}
+/* Chat input area */
+[data-theme="light"] .chat-inp-area{background:rgba(248,250,252,.95);border-top:1px solid rgba(0,0,0,.08)}
+/* Canvas nodes lighter */
+[data-theme="light"] #nc{opacity:.4}
+/* Auth right panel */
+[data-theme="light"] .auth-r{background:#FFFFFF}
+[data-theme="light"] .tab-btn.on{background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+/* Demo nav light */
+[data-theme="light"] .dn{background:rgba(255,255,255,.95);border-color:rgba(0,0,0,.1)}
+[data-theme="light"] .dn-lbl{color:#94A3B8}
+[data-theme="light"] .dn-sep{background:rgba(0,0,0,.1)}
+[data-theme="light"] .dnb{background:rgba(0,0,0,.05);color:#64748B}
+[data-theme="light"] .dnb:hover{background:rgba(0,0,0,.09);color:#0F172A}
+[data-theme="light"] .dnb.on{background:var(--grd);color:#fff}
+/* Smooth transition on ALL elements */
+*{transition:background-color .25s ease,border-color .25s ease,color .25s ease,box-shadow .25s ease}
+/* But NOT transform transitions — override for hover effects */
+.course-card,.stat,.sess-it,.stbl-r,.hc{transition:background-color .25s ease,border-color .25s ease,color .25s ease,transform .2s ease,box-shadow .2s ease}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);overflow:hidden}
+canvas#nc{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ── SCREENS ── */
+.sc{display:none;height:100vh;width:100%;position:relative;z-index:1;animation:scIn .3s ease}
+.sc.on{display:flex}
+@keyframes scIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── GLASS UTILS ── */
+.glass{background:var(--sf);backdrop-filter:blur(20px);border:1px solid var(--bd)}
+.glass2{background:var(--sf2);backdrop-filter:blur(20px);border:1px solid var(--bd2)}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:var(--bd2)}
+.card-h{padding:18px;border-bottom:1px solid var(--bd);margin-bottom:0}
+.card-b{padding:18px}
+.card-title{font-size:13px;font-weight:700;color:var(--tx);letter-spacing:-.1px;margin-bottom:14px}
+
+/* ── GRADIENT TEXT ── */
+.gt{background:var(--grd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gt2{background:var(--grd2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* ── LOGO SVG ANIMATIONS ── */
+@keyframes np{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
+@keyframes nc2{0%,100%{stroke-opacity:.1}50%{stroke-opacity:.7}}
+.ln{transform-origin:center;transform-box:fill-box}
+.ln0{animation:np 2.8s ease-in-out 0s infinite}
+.ln1{animation:np 2.8s ease-in-out .35s infinite}
+.ln2{animation:np 2.8s ease-in-out .7s infinite}
+.ln3{animation:np 2.8s ease-in-out 1.05s infinite}
+.ln4{animation:np 2.8s ease-in-out 1.4s infinite}
+.ln5{animation:np 2.8s ease-in-out 1.75s infinite}
+.ln6{animation:np 2.8s ease-in-out 2.1s infinite}
+.ln7{animation:np 2.8s ease-in-out 2.45s infinite}
+.lc{animation:nc2 2.2s ease-in-out infinite}
+.lc0{animation-delay:.1s}.lc1{animation-delay:.4s}.lc2{animation-delay:.8s}
+.lc3{animation-delay:1.1s}.lc4{animation-delay:1.5s}.lc5{animation-delay:1.9s}
+.lc6{animation-delay:.25s}.lc7{animation-delay:.65s}.lc8{animation-delay:1.3s}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.btn-pri{background:var(--grd);color:#fff;box-shadow:0 0 20px rgba(99,102,241,.25)}
+.btn-pri:hover{box-shadow:0 0 32px rgba(99,102,241,.45);transform:translateY(-1px)}
+.btn-sec{background:var(--sf2);color:var(--mu);border:1px solid var(--bd2)}
+.btn-sec:hover{color:var(--tx);border-color:var(--bd2);background:var(--sf3)}
+.btn-full{width:100%}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:7px}
+.btn-ghost{background:none;color:var(--mu);border:1px solid var(--bd)}
+.btn-ghost:hover{color:var(--tx);border-color:var(--bd2)}
+
+/* ── FORM ── */
+.fl{font-size:11px;font-weight:600;color:var(--mu);margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase}
+.fi{width:100%;padding:10px 13px;background:var(--sf2);border:1px solid var(--bd2);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;color:var(--tx);outline:none;transition:all .2s;margin-bottom:14px}
+.fi:focus{border-color:var(--in);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.fi::placeholder{color:var(--su)}
+select.fi{cursor:pointer}
+
+/* ── BADGE ── */
+.b{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.bg{background:var(--grl);color:var(--gr)}
+.by{background:var(--yel);color:var(--ye)}
+.br{background:var(--rel);color:var(--re)}
+.bi{background:rgba(99,102,241,.15);color:var(--inv)}
+.bv{background:rgba(139,92,246,.15);color:var(--vi)}
+.ba{background:var(--aml);color:var(--am)}
+
+/* ── AUTH ── */
+#login,#register{background:var(--bg);align-items:center;justify-content:center}
+.auth-wrap{display:grid;grid-template-columns:1fr 1fr;width:880px;height:560px;border-radius:20px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.6);border:1px solid var(--bd2)}
+.auth-l{background:linear-gradient(135deg,#1a1040 0%,#0f0a2e 50%,#1a0a3e 100%);padding:44px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.auth-l::before{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.2) 0%,transparent 70%);top:-60px;right:-60px;border-radius:50%}
+.auth-l::after{content:'';position:absolute;width:200px;height:200px;background:radial-gradient(circle,rgba(139,92,246,.15) 0%,transparent 70%);bottom:40px;left:20px;border-radius:50%}
+.auth-logo{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+.auth-logo-text h1{font-size:20px;font-weight:900;color:#fff;letter-spacing:-.4px}
+.auth-logo-text p{font-size:11px;color:rgba(255,255,255,.4);margin-top:1px}
+.auth-tagline{position:relative;z-index:1}
+.auth-tagline h2{font-size:28px;font-weight:900;line-height:1.2;letter-spacing:-.5px}
+.auth-tagline h2 span{display:block;color:#fff}
+.auth-tagline p{font-size:13px;color:rgba(255,255,255,.5);margin-top:12px;line-height:1.65}
+.auth-feats{margin-top:20px;display:flex;flex-direction:column;gap:8px}
+.auth-feat{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.6);animation:featIn .5s ease both}
+@keyframes featIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.auth-feat .dot{width:6px;height:6px;border-radius:50%;background:var(--am);flex-shrink:0}
+.auth-r{background:var(--bg2);padding:40px 44px;display:flex;flex-direction:column;justify-content:center}
+.auth-r h3{font-size:20px;font-weight:800;color:var(--tx);margin-bottom:5px;letter-spacing:-.3px}
+.auth-r .sub{font-size:13px;color:var(--mu);margin-bottom:24px}
+.tab-row{display:flex;background:var(--sf);border:1px solid var(--bd);border-radius:9px;padding:3px;margin-bottom:22px}
+.tab-btn{flex:1;padding:7px;border:none;background:none;border-radius:7px;font-size:13px;font-weight:600;color:var(--su);cursor:pointer;transition:.2s;font-family:'Inter',sans-serif}
+.tab-btn.on{background:var(--sf3);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.path-card{border:1.5px solid var(--bd2);border-radius:11px;padding:14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.path-card:hover{border-color:var(--in);background:rgba(99,102,241,.05)}
+.path-card.sel{border-color:var(--in);background:rgba(99,102,241,.08)}
+.path-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.path-info h4{font-size:13px;font-weight:700;color:var(--tx)}
+.path-info p{font-size:11px;color:var(--mu);margin-top:2px}
+.err-box{display:none;padding:9px 12px;background:var(--rel);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--re);font-weight:500;margin-top:8px}
+.ok-box{display:none;padding:9px 12px;background:var(--grl);border:1px solid rgba(16,185,129,.3);border-radius:8px;font-size:12px;color:var(--gr);font-weight:600;margin-bottom:12px}
+.link-sm{font-size:12px;color:var(--mu);text-align:center;margin-top:14px}
+.link-sm a{color:var(--inv);font-weight:600;cursor:pointer;text-decoration:none}
+
+/* ── APP SHELL ── */
+.app{display:flex;width:100%;height:100vh}
+
+/* ── SIDEBAR ── */
+.sb{width:var(--sw);background:rgba(8,12,26,.95);backdrop-filter:blur(20px);border-right:1px solid var(--bd);display:flex;flex-direction:column;flex-shrink:0}
+.sb-top{padding:16px 14px 12px;border-bottom:1px solid var(--bd)}
+.sb-logo{display:flex;align-items:center;gap:9px}
+.sb-logo-t h2{font-size:15px;font-weight:900;color:var(--tx);letter-spacing:-.3px}
+.sb-logo-t p{font-size:10px;color:var(--su);margin-top:1px}
+.sb-usr{padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--bd)}
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.av-s{background:linear-gradient(135deg,var(--am),#F97316);color:#fff}
+.av-i{background:var(--grd);color:#fff}
+.av-a{background:linear-gradient(135deg,#374151,#1F2937);color:var(--mu)}
+.sb-usr-t .nm{font-size:12px;font-weight:600;color:var(--tx)}
+.sb-usr-t .rl{font-size:10px;color:var(--su);margin-top:1px}
+.nav{flex:1;padding:8px 8px;display:flex;flex-direction:column;gap:1px;overflow-y:auto}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;font-size:13px;font-weight:500;color:var(--su);cursor:pointer;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:'Inter',sans-serif;letter-spacing:-.1px}
+.ni:hover{background:var(--sf2);color:var(--mu)}
+.ni.on{background:rgba(99,102,241,.12);color:var(--inv);font-weight:600}
+.ni .ic{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.nsep{height:1px;background:var(--bd);margin:6px 8px}
+/* Sidebar CDS widget */
+.sb-cds{margin:10px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:11px;padding:12px 13px}
+.sb-cds-lbl{font-size:11px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.sb-cds-bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.sb-cds-fill{height:100%;border-radius:2px;background:var(--grd);transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.sb-cds-row{display:flex;justify-content:space-between;align-items:baseline}
+.sb-cds-sc{font-size:22px;font-weight:900;color:var(--tx);letter-spacing:-.5px}
+.sb-cds-bd{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
+
+/* ── TOPBAR ── */
+.tb{height:52px;background:rgba(8,12,26,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0}
+.tb-title{font-size:14px;font-weight:700;color:var(--tx);letter-spacing:-.2px}
+.ml{margin-left:auto}
+.mls{margin-left:8px}
+
+/* ── PAGE ── */
+.pg{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd2) transparent}
+.pg::-webkit-scrollbar{width:5px}.pg::-webkit-scrollbar-track{background:transparent}.pg::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+
+/* ── CHAT ── */
+.chat-lay{display:flex;flex:1;overflow:hidden;min-width:0}
+.chat-col{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:8px;max-width:70%}
+.msg.me{flex-direction:row-reverse;align-self:flex-end}
+.m-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+.m-av.bot{background:var(--grd);color:#fff}
+.m-av.stu{background:var(--aml);color:var(--am)}
+.bub{padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.6;animation:bubIn .25s ease both}
+@keyframes bubIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.bot .bub{background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);border-radius:3px 14px 14px 14px}
+.msg.me .bub{background:var(--grd);color:#fff;border-radius:14px 3px 14px 14px;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.bub code{background:rgba(255,255,255,.1);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.msg.me .bub code{background:rgba(255,255,255,.2)}
+.htag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--am);background:var(--aml);border:1px solid rgba(245,158,11,.2);padding:3px 9px;border-radius:12px;margin-top:7px}
+.mtime{font-size:10px;color:var(--su);margin-top:3px;padding:0 2px}
+.msg.me .mtime{text-align:right}
+/* Typing */
+.typing-bub{display:flex;align-items:center;gap:4px;padding:12px 14px;background:var(--sf2);border:1px solid var(--bd2);border-radius:3px 14px 14px 14px;width:54px}
+.td{width:7px;height:7px;border-radius:50%;background:var(--su);animation:tdB 1.2s ease-in-out infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes tdB{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-5px);opacity:1}}
+/* Chat input */
+.chat-inp-area{padding:12px 18px;background:rgba(8,12,26,.9);border-top:1px solid var(--bd);backdrop-filter:blur(10px)}
+.hp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.hp-lbl{font-size:11px;font-weight:600;color:var(--su)}
+.hp-val{font-size:11px;font-weight:700;color:var(--inv);background:rgba(99,102,241,.15);padding:2px 8px;border-radius:10px}
+.hdots{display:flex;gap:4px;margin-bottom:10px}
+.hd{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.08);transition:.3s}
+.hd.dn{background:var(--grd2)}
+.hd.nw{background:var(--grd)}
+.inp-row{display:flex;gap:8px;align-items:flex-end}
+.chat-in{flex:1;padding:10px 13px;background:var(--sf2);border:1px solid var(--bd2);border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;resize:none;height:42px;outline:none;color:var(--tx);transition:.2s}
+.chat-in:focus{border-color:var(--in);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.chat-in::placeholder{color:var(--su)}
+.snd{height:42px;padding:0 16px;background:var(--grd);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;flex-shrink:0;transition:.2s;box-shadow:0 0 18px rgba(99,102,241,.3)}
+.snd:hover{box-shadow:0 0 28px rgba(99,102,241,.5);transform:translateY(-1px)}
+.cod{height:42px;padding:0 12px;background:var(--sf2);color:var(--mu);border:1px solid var(--bd2);border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;transition:.2s}
+.cod:hover{color:var(--tx);border-color:var(--bd2)}
+/* Right panel */
+.rp{width:250px;border-left:1px solid var(--bd);background:rgba(8,12,26,.7);backdrop-filter:blur(16px);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.rp-sec{padding:14px;border-bottom:1px solid var(--bd)}
+.rp-t{font-size:11px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+
+/* ── GAUGE ── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:2px 0 4px}
+.g-sc{font-size:28px;font-weight:900;letter-spacing:-.5px;text-align:center;line-height:1;margin-top:4px;animation:numUp .8s ease both}
+@keyframes numUp{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+.g-bd{font-size:12px;font-weight:700;text-align:center;margin-top:3px}
+.g-bd.low{color:var(--gr)}.g-bd.mod{color:var(--ye)}.g-bd.hi{color:var(--re)}
+.g-desc{font-size:11px;color:var(--mu);text-align:center;margin-top:5px;line-height:1.45;padding:0 4px}
+/* Signal rows */
+.sig{margin-bottom:8px}
+.sig-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sig-nm{font-size:11px;color:var(--mu);font-weight:500}
+.sig-vl{font-size:11px;font-weight:700}
+.sig-bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.sig-f{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.topic-tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(99,102,241,.12);color:var(--inv);border:1px solid rgba(99,102,241,.2);margin:2px}
+
+/* ── DASHBOARD ── */
+.dash{padding:18px;display:flex;flex-direction:column;gap:14px}
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:16px;transition:.2s}
+.stat:hover{border-color:var(--bd2);background:var(--sf2)}
+.stat .v{font-size:26px;font-weight:900;letter-spacing:-.5px;line-height:1;animation:cntUp .8s ease both}
+@keyframes cntUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.stat .l{font-size:11px;color:var(--mu);font-weight:500;margin-top:4px}
+.stat .c{font-size:11px;font-weight:600;margin-top:6px}
+.cu{color:var(--gr)}.cd{color:var(--re)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chart-box{height:128px;position:relative}
+.wt-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.wt-nm{font-size:12px;font-weight:500;color:var(--tx);width:96px;flex-shrink:0}
+.wt-bar{flex:1;height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.wt-f{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.wt-p{font-size:11px;font-weight:700;width:32px;text-align:right}
+.sess-list{display:flex;flex-direction:column;gap:6px}
+.sess-it{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--sf);border:1px solid var(--bd);border-radius:9px;cursor:pointer;transition:.15s}
+.sess-it:hover{background:var(--sf2);border-color:var(--bd2)}
+.sess-tp{font-size:13px;font-weight:600;color:var(--tx)}
+.sess-mt{font-size:11px;color:var(--mu);margin-top:1px}
+
+/* ── REFLECTIONS ── */
+.refl-wrap{padding:18px;max-width:660px}
+.tl{position:relative;padding-left:26px;margin-top:16px}
+.tl::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--bd2)}
+.tl-item{position:relative;margin-bottom:16px;animation:tlIn .4s ease both}
+@keyframes tlIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.tl-dot{position:absolute;left:-22px;top:18px;width:11px;height:11px;border-radius:50%;border:2px solid var(--bg);box-shadow:0 0 8px currentColor}
+.tl-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:14px;transition:.2s}
+.tl-card:hover{border-color:var(--bd2);background:var(--sf2)}
+.tl-meta{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tl-date{font-size:10px;color:var(--su);font-weight:500}
+.tl-tp{font-size:10px;font-weight:700;color:var(--inv);background:rgba(99,102,241,.15);padding:2px 8px;border-radius:10px}
+.rq{font-size:10px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.ra{font-size:13px;color:var(--tx);line-height:1.55;margin-bottom:9px}
+.ra:last-child{margin-bottom:0}
+
+/* ── QUIZ ── */
+.quiz-wrap{padding:18px;max-width:640px;margin:0 auto}
+.qprog{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:16px}
+.qprog-f{height:100%;background:var(--grd);border-radius:2px;width:20%;transition:width .5s ease}
+.q-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:22px;margin-bottom:10px}
+.q-num{font-size:10px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px}
+.q-txt{font-size:15px;font-weight:600;color:var(--tx);line-height:1.5;letter-spacing:-.1px}
+.q-opts{display:flex;flex-direction:column;gap:7px}
+.q-opt{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1.5px solid var(--bd2);border-radius:10px;cursor:pointer;transition:.2s;background:var(--sf)}
+.q-opt:hover{border-color:var(--in);background:rgba(99,102,241,.06)}
+.q-opt.sel{border-color:var(--in);background:rgba(99,102,241,.1)}
+.q-opt.ok{border-color:var(--gr);background:var(--grl)}
+.q-opt.ng{border-color:var(--re);background:var(--rel)}
+.q-lt{width:28px;height:28px;border-radius:7px;background:var(--sf2);border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--mu);flex-shrink:0;transition:.2s}
+.q-opt.sel .q-lt{background:var(--in);border-color:var(--in);color:#fff}
+.q-opt.ok .q-lt{background:var(--gr);border-color:var(--gr);color:#fff}
+.q-opt.ng .q-lt{background:var(--re);border-color:var(--re);color:#fff}
+.q-ltx{font-size:13px;color:var(--tx);font-weight:500}
+.q-act{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.q-res{background:var(--sf);border:1.5px solid var(--gr);border-radius:var(--ra);padding:24px;text-align:center;display:none}
+.q-res.on{display:block;animation:scIn .4s ease}
+.qr-sc{font-size:52px;font-weight:900;line-height:1;letter-spacing:-.5px;animation:cntUp .6s ease both}
+.qr-txt{font-size:14px;color:var(--mu);margin-top:8px}
+
+/* ── COURSES ── */
+.course-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:18px;cursor:pointer;transition:all .2s}
+.course-card:hover{border-color:var(--in);background:var(--sf2);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.cc-code{background:var(--grd);border-radius:10px;padding:12px 16px;text-align:center;flex-shrink:0}
+.cc-code-lbl{font-size:11px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:3px}
+.cc-code-val{font-size:17px;font-weight:900;color:#fff;letter-spacing:3px;font-family:'JetBrains Mono',monospace}
+
+/* ── INSTRUCTOR TABLE ── */
+.stbl{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);overflow:hidden}
+.stbl-h{display:grid;padding:10px 16px;background:var(--sf2);font-size:10px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--bd)}
+.stbl-r{display:grid;padding:12px 16px;border-bottom:1px solid var(--bd);align-items:center;cursor:pointer;transition:.15s}
+.stbl-r:last-child{border-bottom:none}
+.stbl-r:hover{background:var(--sf2)}
+.s-nm{font-size:13px;font-weight:600;color:var(--tx)}
+.s-rl{font-size:10px;color:var(--su);margin-top:1px}
+.tc{font-size:13px;color:var(--tx);font-weight:500}
+
+/* ── HEATMAP ── */
+.hg{display:grid;gap:5px;margin-top:12px}
+.hc-h{font-size:11px;font-weight:700;color:var(--mu);text-align:center}
+.hr-l{font-size:11px;font-weight:600;color:var(--mu);display:flex;align-items:center}
+.hc{height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;cursor:default;transition:transform .15s;position:relative}
+.hc:hover{transform:scale(1.06)}
+.hc[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:10;pointer-events:none}
+
+/* ── QUIZ MODAL ── */
+.q-res{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:9998;align-items:center;justify-content:center}
+.q-res.on{display:flex;animation:scIn .3s ease}
+.q-res-inner{background:var(--bg2);border:1px solid var(--bd2);border-radius:20px;padding:40px 44px;text-align:center;max-width:400px;width:90%;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+
+/* ── ERROR PAGES ── */
+.err-pg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;gap:0}
+.err-illustration{margin-bottom:28px}
+.err-code{font-size:11px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.err-title{font-size:26px;font-weight:900;letter-spacing:-.5px;margin-bottom:10px}
+.err-desc{font-size:14px;color:var(--mu);max-width:380px;line-height:1.6;margin-bottom:28px}
+.err-actions{display:flex;gap:10px;justify-content:center}
+
+/* ── LIGHT THEME gradient fix ── */
+[data-theme="light"] .auth-tagline h2 .gt{background:linear-gradient(135deg,#818CF8,#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+[data-theme="light"] .gt{background:linear-gradient(135deg,#4F46E5,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+
+
+/* ── OPEN USER HOME ── */
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.feat-card{border-radius:var(--ra);padding:18px;cursor:pointer;transition:all .2s;border:1px solid var(--bd)}
+.feat-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.feat-card.prime{background:var(--grd);border-color:transparent;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.feat-card.sec{background:var(--sf);border-color:var(--bd)}
+.feat-card.sec:hover{background:var(--sf2);border-color:var(--bd2)}
+
+/* ── DEMO NAV ── */
+.dn{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(8,12,26,.95);backdrop-filter:blur(20px);border:1px solid var(--bd2);border-radius:12px;padding:8px 12px;display:flex;gap:4px;z-index:9999;box-shadow:0 8px 40px rgba(0,0,0,.5);align-items:center;max-width:98vw;overflow-x:auto}
+.dn-lbl{font-size:11px;font-weight:700;color:var(--su);text-transform:uppercase;letter-spacing:.5px;padding:0 6px;white-space:nowrap}
+.dn-sep{width:1px;height:16px;background:var(--bd2);margin:0 3px;flex-shrink:0}
+.dnb{padding:5px 10px;border-radius:7px;border:none;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;background:var(--sf2);color:var(--mu);transition:.15s;white-space:nowrap;flex-shrink:0}
+.dnb:hover{background:var(--sf3);color:var(--tx)}
+.dnb.on{background:var(--grd);color:#fff;box-shadow:0 2px 12px rgba(99,102,241,.4)}
+.dnb.am{background:var(--aml);color:var(--am)}
+.dnb.am.on{background:var(--grd2);color:#fff}
+</style>
+</head>
+<body>
+
+<!-- Neural background canvas -->
+<canvas id="nc"></canvas>
+
+<!-- Logo template -->
+<svg id="ltpl" style="display:none" viewBox="0 0 48 48">
+  <g stroke="rgba(255,255,255,0.45)" stroke-width="1.1" fill="none">
+    <line class="lc lc0" x1="16" y1="7" x2="30" y2="7"/>
+    <line class="lc lc1" x1="30" y1="7" x2="38" y2="16"/>
+    <line class="lc lc2" x1="38" y1="32" x2="30" y2="41"/>
+    <line class="lc lc3" x1="30" y1="41" x2="16" y2="41"/>
+    <line class="lc lc4" x1="16" y1="7" x2="10" y2="24"/>
+    <line class="lc lc5" x1="10" y1="24" x2="16" y2="41"/>
+    <line class="lc lc6" x1="10" y1="24" x2="24" y2="24"/>
+    <line class="lc lc7" x1="16" y1="7" x2="24" y2="24"/>
+    <line class="lc lc8" x1="16" y1="41" x2="24" y2="24"/>
+  </g>
+  <g fill="var(--am)">
+    <circle class="ln ln0" cx="16" cy="7" r="3.2"/>
+    <circle class="ln ln1" cx="30" cy="7" r="2.8"/>
+    <circle class="ln ln2" cx="38" cy="16" r="2.8"/>
+    <circle class="ln ln3" cx="38" cy="32" r="2.8"/>
+    <circle class="ln ln4" cx="30" cy="41" r="2.8"/>
+    <circle class="ln ln5" cx="16" cy="41" r="3.2"/>
+    <circle class="ln ln6" cx="10" cy="24" r="3.8"/>
+    <circle class="ln ln7" cx="24" cy="24" r="4.2"/>
+  </g>
+  <circle cx="24" cy="24" r="1.8" fill="white" opacity=".9"/>
+</svg>
+
+<!-- ════════════  LOGIN  ════════════ -->
+<div id="login" class="sc on">
+  <div class="auth-wrap">
+    <div class="auth-l">
+      <div class="auth-logo">
+        <svg viewBox="0 0 48 48" width="40" height="40" class="lsvg"></svg>
+        <div class="auth-logo-text"><h1>CogniCode</h1><p>AI Teaching Assistant</p></div>
+      </div>
+      <div class="auth-tagline">
+        <h2><span class="gt">Think. Attempt.</span><span style="color:#fff">Then ask.</span></h2>
+        <p>An AI tutor that teaches you how to reason — not one that reasons for you.</p>
+        <div class="auth-feats">
+          <div class="auth-feat" style="animation-delay:.1s"><div class="dot"></div>Socratic dialogue — guiding questions, not answers</div>
+          <div class="auth-feat" style="animation-delay:.25s"><div class="dot"></div>5-level progressive hints gated behind your effort</div>
+          <div class="auth-feat" style="animation-delay:.4s"><div class="dot"></div>Cognitive Dependency Score — track your independence</div>
+          <div class="auth-feat" style="animation-delay:.55s"><div class="dot"></div>Instructor analytics — see who needs help</div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-r">
+      <h3>Welcome back</h3>
+      <p class="sub">Sign in to continue your session</p>
+      <div class="tab-row">
+        <button class="tab-btn on" onclick="atab('l',this)">Sign In</button>
+        <button class="tab-btn" onclick="atab('r',this)">Register</button>
+      </div>
+      <div id="lf">
+        <div class="fl">Email Address</div>
+        <input class="fi" id="lid" placeholder="student@university.edu / instructor@university.edu"/>
+        <div class="fl">Password</div>
+        <input class="fi" type="password" placeholder="••••••••"/>
+        <button class="btn btn-pri btn-full" onclick="doLogin()">Sign In →</button>
+        <div class="err-box" id="lerr">Invalid credentials. Please check your email and password.</div>
+      </div>
+      <div id="rf" style="display:none">
+        <div class="fl">Role</div>
+        <div class="tab-row" style="margin-bottom:14px">
+          <button type="button" class="tab-btn on" id="role-stu" onclick="selRole('student')">🎓 Student / Learner</button>
+          <button type="button" class="tab-btn" id="role-ins" onclick="selRole('instructor')">📋 Instructor</button>
+        </div>
+        <div class="fl">Full Name</div><input class="fi" id="rn" placeholder="Your full name"/>
+        <div class="fl">Email</div><input class="fi" id="rem" type="email" placeholder="you@university.edu"/>
+        <div class="fl">Institution <span style="color:var(--su);font-weight:400">(optional)</span></div>
+        <input class="fi" id="rinst" placeholder="University, College, or Self-Study"/>
+        <div class="fl">Password</div><input class="fi" type="password" placeholder="At least 8 characters"/>
+        <button class="btn btn-pri btn-full" onclick="doRegister()">Create Account →</button>
+      </div>
+      <p class="link-sm">Protected by JWT &amp; bcrypt authentication</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  STUDENT COURSES  ════════════ -->
+<div id="scourses" class="sc">
+  <div class="app">
+    <div class="sb" id="sb-s1">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav">
+        <button class="ni on"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('chat')"><span class="ic">💬</span>Tutor Chat</button>
+        <button class="ni" onclick="goTo('sdash')"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni" onclick="goTo('refl')"><span class="ic">📝</span>Reflections</button>
+        <button class="ni" onclick="goTo('quiz')"><span class="ic">🧪</span>Quizzes</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+      <div class="sb-cds"><div class="sb-cds-lbl">Dependency Score</div><div class="sb-cds-bar"><div class="sb-cds-fill" style="width:32%"></div></div><div class="sb-cds-row"><div class="sb-cds-sc">32</div><div class="sb-cds-bd" style="background:var(--grl);color:var(--gr)">Low ✓</div></div></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">My Courses</div><span class="b bi mls">2 Enrolled</span><button onclick="openM('jm')" class="btn btn-pri btn-sm ml" style="font-size:12px">+ Join Course</button></div>
+      <div class="pg"><div style="padding:18px;display:flex;flex-direction:column;gap:12px;max-width:760px">
+        <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--inv)">
+          💡 Join your instructor's course with a course code, or start an independent tutoring session anytime from Tutor Chat.
+        </div>
+        <div class="course-card" onclick="joinCourse('Data Structures — Section A')" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:15px;font-weight:800;color:var(--tx)">Data Structures — Section A</span><span class="b bg">Active</span></div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Instructor: <strong style="color:var(--tx)">Sanam Ahmad</strong> · Fall 2026</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--gr)">32</div><div style="font-size:10px;color:var(--mu);font-weight:600">CDS</div></div>
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--tx)">7</div><div style="font-size:10px;color:var(--mu);font-weight:600">Sessions</div></div>
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--tx)">74%</div><div style="font-size:10px;color:var(--mu);font-weight:600">Quiz Avg</div></div>
+            </div>
+          </div>
+          <div class="cc-code"><div class="cc-code-lbl">CODE</div><div class="cc-code-val">CS301</div></div>
+        </div>
+        <div class="course-card" onclick="joinCourse('OOP — Section B')" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:15px;font-weight:800;color:var(--tx)">Object Oriented Programming — Section B</span><span class="b bg">Active</span></div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">Instructor: <strong style="color:var(--tx)">Sanam Ahmad</strong> · Fall 2026</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--ye)">48</div><div style="font-size:10px;color:var(--mu);font-weight:600">CDS</div></div>
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--tx)">4</div><div style="font-size:10px;color:var(--mu);font-weight:600">Sessions</div></div>
+              <div style="text-align:center;background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:8px 14px"><div style="font-size:17px;font-weight:900;color:var(--tx)">61%</div><div style="font-size:10px;color:var(--mu);font-weight:600">Quiz Avg</div></div>
+            </div>
+          </div>
+          <div class="cc-code" style="background:var(--grd2)"><div class="cc-code-lbl">CODE</div><div class="cc-code-val">OOP-B</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  CHAT  ════════════ -->
+<div id="chat" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('scourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni on"><span class="ic">💬</span>Tutor Chat</button>
+        <button class="ni" onclick="goTo('sdash')"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni" onclick="goTo('refl')"><span class="ic">📝</span>Reflections</button>
+        <button class="ni" onclick="goTo('quiz')"><span class="ic">🧪</span>Quizzes</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+      <div class="sb-cds"><div class="sb-cds-lbl">Dependency Score</div><div class="sb-cds-bar"><div class="sb-cds-fill" style="width:32%"></div></div><div class="sb-cds-row"><div class="sb-cds-sc">32</div><div class="sb-cds-bd" style="background:var(--grl);color:var(--gr)">Low ✓</div></div></div>
+    </div>
+    <div class="main">
+      <div class="tb">
+        <div class="tb-title"><span id="chat-course">Data Structures</span>&nbsp;·&nbsp;Linked Lists</div>
+        <span class="b bi mls">Session 7</span>
+        <span class="b bg mls">32 · Low</span>
+        <span class="ml" style="font-size:11px;color:var(--mu)">Today 3:45 PM</span>
+      </div>
+      <div class="chat-lay">
+        <div class="chat-col">
+          <div class="chat-msgs" id="cmsg">
+            <div class="msg bot"><div class="m-av bot">C</div><div><div class="bub">Hello Abdullah! Today we are working on <strong>Linked Lists</strong>. What would you like to explore — traversal, insertion, deletion, or reversal?</div><div class="mtime">CogniCode · 3:41 PM</div></div></div>
+            <div class="msg me"><div class="m-av stu">A</div><div><div class="bub">Can you write me a function to reverse a linked list in Python?</div><div class="mtime">3:42 PM</div></div></div>
+            <div class="msg bot"><div class="m-av bot">C</div><div><div class="bub">Let's think through this first. When you reverse a linked list, what happens to the <code>next</code> pointer of each node? Where does it point after reversal?</div><div class="htag">💡 Attempt needed to unlock hints</div><div class="mtime">CogniCode · 3:42 PM</div></div></div>
+            <div class="msg me"><div class="m-av stu">A</div><div><div class="bub">I think each node's next pointer needs to point to the previous node instead of the next one?</div><div class="mtime">3:44 PM</div></div></div>
+            <div class="msg bot"><div class="m-av bot">C</div><div><div class="bub">Exactly right. Now think: when you overwrite a node's <code>next</code> pointer, you lose the reference to the rest of the list. How would you preserve that reference before changing the pointer?</div><div class="htag">🔓 Level 1 unlocked</div><div class="mtime">CogniCode · 3:44 PM</div></div></div>
+            <div class="msg bot" id="trow" style="display:none"><div class="m-av bot">C</div><div><div class="typing-bub"><div class="td"></div><div class="td"></div><div class="td"></div></div></div></div>
+          </div>
+          <div class="chat-inp-area">
+            <div class="hp-top"><span class="hp-lbl">Hint Level</span><span class="hp-val">Level 1 of 5</span></div>
+            <div class="hdots"><div class="hd dn"></div><div class="hd nw"></div><div class="hd"></div><div class="hd"></div><div class="hd"></div></div>
+            <div class="inp-row">
+              <textarea class="chat-in" id="cin" placeholder="Type your attempt or question…" onkeydown="hkd(event)"></textarea>
+              <button class="cod">&lt;/&gt;</button>
+              <button class="snd" onclick="sendMsg()">Send ↑</button>
+            </div>
+          </div>
+        </div>
+        <div class="rp">
+          <div class="rp-sec">
+            <div class="rp-t">Cognitive Dependency</div>
+            <div class="gauge-wrap">
+              <svg viewBox="0 0 160 96" width="152" height="96">
+                <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#10B981"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#EF4444"/></linearGradient></defs>
+                <path d="M 18 86 A 62 62 0 0 1 142 86" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10" stroke-linecap="round"/>
+                <path d="M 18 86 A 62 62 0 0 1 142 86" fill="none" stroke="url(#gg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="195" stroke-dashoffset="133" style="animation:gFill 1.2s cubic-bezier(.16,1,.3,1) both"/>
+                <line x1="80" y1="86" x2="35" y2="53" stroke="white" stroke-width="2.5" stroke-linecap="round" style="animation:nFill 1.2s cubic-bezier(.16,1,.3,1) both"/>
+                <circle cx="80" cy="86" r="5" fill="white"/>
+                <circle cx="80" cy="86" r="8" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+                <text x="22" y="100" font-size="9" fill="var(--su)" font-family="Inter" font-weight="600">Low</text>
+                <text x="72" y="12" font-size="9" fill="var(--su)" font-family="Inter" font-weight="600">Mid</text>
+                <text x="128" y="100" font-size="9" fill="var(--su)" font-family="Inter" font-weight="600">High</text>
+              </svg>
+              <style>@keyframes gFill{from{stroke-dashoffset:195}to{stroke-dashoffset:133}}@keyframes nFill{from{transform:rotate(90deg);transform-origin:80px 86px}to{transform:rotate(0deg);transform-origin:80px 86px}}</style>
+              <div class="g-sc">32</div>
+              <div class="g-bd low">Low Dependency</div>
+              <div class="g-desc">Thinking independently.<br/>Keep attempting before asking.</div>
+            </div>
+          </div>
+          <div class="rp-sec">
+            <div class="rp-t">Session Signals</div>
+            <div class="sig"><div class="sig-top"><span class="sig-nm">Solution requests</span><span class="sig-vl" style="color:var(--re)">1</span></div><div class="sig-bar"><div class="sig-f" style="width:10%;background:var(--re)"></div></div></div>
+            <div class="sig"><div class="sig-top"><span class="sig-nm">Avg hint level</span><span class="sig-vl" style="color:var(--am)">1.0</span></div><div class="sig-bar"><div class="sig-f" style="width:20%;background:var(--am)"></div></div></div>
+            <div class="sig"><div class="sig-top"><span class="sig-nm">Attempts made</span><span class="sig-vl" style="color:var(--gr)">3</span></div><div class="sig-bar"><div class="sig-f" style="width:60%;background:var(--gr)"></div></div></div>
+            <div class="sig"><div class="sig-top"><span class="sig-nm">Debug effort</span><span class="sig-vl" style="color:var(--gr)">Good</span></div><div class="sig-bar"><div class="sig-f" style="width:70%;background:var(--gr)"></div></div></div>
+            <div class="sig"><div class="sig-top"><span class="sig-nm">Quiz score</span><span class="sig-vl">80%</span></div><div class="sig-bar"><div class="sig-f" style="width:80%;background:var(--in)"></div></div></div>
+          </div>
+          <div class="rp-sec">
+            <div class="rp-t">Weak Topics</div>
+            <span class="topic-tag">Recursion</span><span class="topic-tag">Binary Trees</span><span class="topic-tag" style="background:var(--aml);color:var(--am);border-color:rgba(245,158,11,.2)">Graphs</span>
+          </div>
+          <div class="rp-sec">
+            <div class="rp-t">Session Info</div>
+            <div style="font-size:12px;color:var(--mu);line-height:1.8">Topic: Linked Lists<br/>Started: 3:41 PM<br/>Messages: 5<br/>Course: Data Structures</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  STUDENT DASHBOARD  ════════════ -->
+<div id="sdash" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('scourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('chat')"><span class="ic">💬</span>Tutor Chat</button>
+        <button class="ni on"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni" onclick="goTo('refl')"><span class="ic">📝</span>Reflections</button>
+        <button class="ni" onclick="goTo('quiz')"><span class="ic">🧪</span>Quizzes</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+      <div class="sb-cds"><div class="sb-cds-lbl">Dependency Score</div><div class="sb-cds-bar"><div class="sb-cds-fill" style="width:32%"></div></div><div class="sb-cds-row"><div class="sb-cds-sc">32</div><div class="sb-cds-bd" style="background:var(--grl);color:var(--gr)">Low ✓</div></div></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">My Dashboard</div><span class="b bg mls">Low Dependency</span><span class="ml" style="font-size:11px;color:var(--mu)">Week 5 of Semester</span></div>
+      <div class="pg"><div class="dash">
+        <div class="sg">
+          <div class="stat"><div class="v" style="color:var(--gr)">32</div><div class="l">Dependency Score</div><div class="c cu">↓ 8 pts this week</div></div>
+          <div class="stat"><div class="v">1.4</div><div class="l">Avg Hint Level</div><div class="c cu">↓ 0.6 this week</div></div>
+          <div class="stat"><div class="v">12</div><div class="l">Total Sessions</div><div class="c cu">+3 this week</div></div>
+          <div class="stat"><div class="v">74%</div><div class="l">Avg Quiz Score</div><div class="c cu">↑ 12% this week</div></div>
+        </div>
+        <div class="g2">
+          <div class="card card-b">
+            <div class="card-title">Dependency Score Trend</div>
+            <div class="chart-box">
+              <svg width="100%" height="128" viewBox="0 0 260 128" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="cg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6366F1" stop-opacity=".25"/><stop offset="100%" stop-color="#6366F1" stop-opacity="0"/></linearGradient>
+                  <linearGradient id="cg2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#10B981"/></linearGradient>
+                </defs>
+                <path d="M0 88 C52 88 52 76 104 64 S156 48 182 38 S234 30 260 26 L260 128 L0 128Z" fill="url(#cg1)"/>
+                <polyline points="0,88 52,80 104,64 156,48 208,36 260,26" fill="none" stroke="url(#cg2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="0" cy="88" r="4" fill="#6366F1"/><circle cx="52" cy="80" r="4" fill="#6366F1"/><circle cx="104" cy="64" r="4" fill="#6366F1"/><circle cx="156" cy="48" r="4" fill="#10B981"/><circle cx="208" cy="36" r="4" fill="#10B981"/>
+                <circle cx="260" cy="26" r="5" fill="#10B981" stroke="#080C1A" stroke-width="2.5"/>
+                <text x="0" y="118" font-size="9" fill="var(--su)" font-family="Inter">Wk1</text>
+                <text x="248" y="118" font-size="9" fill="var(--su)" font-family="Inter">Now</text>
+                <text x="248" y="20" font-size="10" fill="#10B981" font-weight="bold" font-family="Inter">32</text>
+                <text x="2" y="84" font-size="9" fill="var(--su)" font-family="Inter">58</text>
+              </svg>
+            </div>
+          </div>
+          <div class="card card-b">
+            <div class="card-title">Weak Topics</div>
+            <div class="wt-row"><div class="wt-nm">Recursion</div><div class="wt-bar"><div class="wt-f" style="width:82%;background:var(--re)"></div></div><div class="wt-p" style="color:var(--re)">82%</div></div>
+            <div class="wt-row"><div class="wt-nm">Graphs</div><div class="wt-bar"><div class="wt-f" style="width:71%;background:var(--re)"></div></div><div class="wt-p" style="color:var(--re)">71%</div></div>
+            <div class="wt-row"><div class="wt-nm">Binary Trees</div><div class="wt-bar"><div class="wt-f" style="width:64%;background:var(--ye)"></div></div><div class="wt-p" style="color:var(--ye)">64%</div></div>
+            <div class="wt-row"><div class="wt-nm">Linked Lists</div><div class="wt-bar"><div class="wt-f" style="width:42%;background:var(--ye)"></div></div><div class="wt-p" style="color:var(--ye)">42%</div></div>
+            <div class="wt-row"><div class="wt-nm">Sorting</div><div class="wt-bar"><div class="wt-f" style="width:18%;background:var(--gr)"></div></div><div class="wt-p" style="color:var(--gr)">18%</div></div>
+          </div>
+        </div>
+        <div class="card card-b">
+          <div class="card-title">Recent Sessions</div>
+          <div class="sess-list">
+            <div class="sess-it"><div><div class="sess-tp">Linked Lists — Reversal</div><div class="sess-mt">Today · 5 messages · Hint L1</div></div><span class="b bg">32</span></div>
+            <div class="sess-it"><div><div class="sess-tp">Binary Trees — Traversal</div><div class="sess-mt">Yesterday · 9 messages · Hint L2</div></div><span class="b by">47</span></div>
+            <div class="sess-it"><div><div class="sess-tp">Recursion — Fibonacci</div><div class="sess-mt">2 days ago · 14 messages · Hint L4</div></div><span class="b br">71</span></div>
+            <div class="sess-it"><div><div class="sess-tp">Sorting — Bubble Sort</div><div class="sess-mt">4 days ago · 5 messages · Hint L1</div></div><span class="b bg">28</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  REFLECTIONS  ════════════ -->
+<div id="refl" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('scourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('chat')"><span class="ic">💬</span>Tutor Chat</button>
+        <button class="ni" onclick="goTo('sdash')"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni on"><span class="ic">📝</span>Reflections</button>
+        <button class="ni" onclick="goTo('quiz')"><span class="ic">🧪</span>Quizzes</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+      <div class="sb-cds"><div class="sb-cds-lbl">Dependency Score</div><div class="sb-cds-bar"><div class="sb-cds-fill" style="width:32%"></div></div><div class="sb-cds-row"><div class="sb-cds-sc">32</div><div class="sb-cds-bd" style="background:var(--grl);color:var(--gr)">Low ✓</div></div></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Learning Journal</div><span class="ml" style="font-size:11px;color:var(--mu)">12 reflections total</span></div>
+      <div class="pg"><div class="refl-wrap">
+        <div style="margin-bottom:16px"><div style="font-size:18px;font-weight:900;letter-spacing:-.3px" class="gt">Learning Journal</div><div style="font-size:13px;color:var(--mu);margin-top:4px">End-of-session reflections that build over time.</div></div>
+        <div class="tl">
+          <div class="tl-item" style="animation-delay:.05s"><div class="tl-dot" style="background:var(--gr);color:var(--gr)"></div><div class="tl-card"><div class="tl-meta"><span class="tl-date">Today · 4:12 PM</span><span class="tl-tp">Linked Lists</span><span class="b bg" style="margin-left:auto">32</span></div><div class="rq">What did you learn today?</div><div class="ra">Reversing a linked list needs three pointers — <code style="background:var(--sf2);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">prev</code>, <code style="background:var(--sf2);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">current</code>, and <code style="background:var(--sf2);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">next_node</code>. The key is saving the next reference before overwriting the pointer.</div><div class="rq">What mistake will you avoid next time?</div><div class="ra">I will stop asking for the full solution immediately. The Socratic questions actually led me to the answer faster than I expected.</div></div></div>
+          <div class="tl-item" style="animation-delay:.15s"><div class="tl-dot" style="background:var(--ye);color:var(--ye)"></div><div class="tl-card"><div class="tl-meta"><span class="tl-date">Yesterday · 5:30 PM</span><span class="tl-tp">Binary Trees</span><span class="b by" style="margin-left:auto">47</span></div><div class="rq">What did you learn today?</div><div class="ra">In-order traversal visits Left → Root → Right. I kept confusing pre-order and in-order. In-order gives sorted output for a BST — that is the key to remember.</div><div class="rq">What mistake will you avoid next time?</div><div class="ra">Not drawing the tree on paper first. The traversal order became obvious as soon as I sketched it.</div></div></div>
+          <div class="tl-item" style="animation-delay:.25s"><div class="tl-dot" style="background:var(--re);color:var(--re)"></div><div class="tl-card"><div class="tl-meta"><span class="tl-date">2 days ago · 6:10 PM</span><span class="tl-tp">Recursion</span><span class="b br" style="margin-left:auto">71</span></div><div class="rq">What did you learn today?</div><div class="ra">Every recursive function needs a base case that stops it and a recursive case that moves toward the base. I still struggle with correctly defining the base case on the first try.</div><div class="rq">What mistake will you avoid next time?</div><div class="ra">Reaching Level 4 hint too quickly. I need to try more attempts before escalating — my solutions were closer than I thought.</div></div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  QUIZ  ════════════ -->
+<div id="quiz" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('scourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('chat')"><span class="ic">💬</span>Tutor Chat</button>
+        <button class="ni" onclick="goTo('sdash')"><span class="ic">📊</span>Dashboard</button>
+        <button class="ni" onclick="goTo('refl')"><span class="ic">📝</span>Reflections</button>
+        <button class="ni on"><span class="ic">🧪</span>Quizzes</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+      <div class="sb-cds"><div class="sb-cds-lbl">Dependency Score</div><div class="sb-cds-bar"><div class="sb-cds-fill" style="width:32%"></div></div><div class="sb-cds-row"><div class="sb-cds-sc">32</div><div class="sb-cds-bd" style="background:var(--grl);color:var(--gr)">Low ✓</div></div></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Concept Quiz — Linked Lists</div><span class="b bi mls" id="qbadge">Question 1 of 5</span></div>
+      <div class="pg"><div class="quiz-wrap">
+        <div class="qprog"><div class="qprog-f" id="qpf"></div></div>
+        <div style="font-size:11px;color:var(--mu);margin-bottom:14px;text-align:right" id="qmt">1 of 5 · 0 correct</div>
+        <div class="q-card" id="qcard">
+          <div class="q-num">Question 1 of 5</div>
+          <div class="q-txt">What is the time complexity of reversing a singly linked list iteratively?</div>
+        </div>
+        <div class="q-opts" id="qopts">
+          <div class="q-opt" onclick="qsel(this,'a')"><div class="q-lt">A</div><div class="q-ltx">O(1) — only the head pointer changes</div></div>
+          <div class="q-opt" onclick="qsel(this,'b')"><div class="q-lt">B</div><div class="q-ltx">O(n) — we visit every node exactly once</div></div>
+          <div class="q-opt" onclick="qsel(this,'c')"><div class="q-lt">C</div><div class="q-ltx">O(n²) — we need two nested loops</div></div>
+          <div class="q-opt" onclick="qsel(this,'d')"><div class="q-lt">D</div><div class="q-ltx">O(log n) — divide and conquer approach</div></div>
+        </div>
+        <div class="q-act" style="margin-top:10px">
+          <button class="btn btn-sec" disabled>← Previous</button>
+          <button class="btn btn-pri" id="qnxt" onclick="qnext()" disabled>Submit Answer →</button>
+        </div>
+        <div class="q-res" id="qres">
+          <div class="q-res-inner">
+            <div style="font-size:48px;margin-bottom:14px">🎯</div>
+            <div class="qr-sc gt">4 <span style="-webkit-text-fill-color:var(--mu);font-size:28px;font-weight:400">/ 5</span></div>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:var(--grl);border:1px solid rgba(16,185,129,.25);border-radius:20px;padding:4px 14px;margin:12px 0">
+              <span style="font-size:12px;font-weight:700;color:var(--gr)">CDS reduced by 4 points</span>
+            </div>
+            <div class="qr-txt">Great work on Linked Lists! Your quiz score has been factored into your Cognitive Dependency Score.</div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:22px">
+              <button class="btn btn-sec" onclick="qreset()">Retake Quiz</button>
+              <button class="btn btn-pri" onclick="document.getElementById('qres').classList.remove('on');goTo('chat')">Back to Tutor →</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  INSTRUCTOR COURSES  ════════════ -->
+<div id="icourses" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-i">S</div><div class="sb-usr-t"><div class="nm">Sanam Ahmad</div><div class="rl">Instructor</div></div></div>
+      <div class="nav">
+        <button class="ni on"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('idash')"><span class="ic">🏠</span>Dashboard</button>
+        <button class="ni" onclick="goTo('idetail')"><span class="ic">👤</span>Student Detail</button>
+        <button class="ni" onclick="goTo('iheat')"><span class="ic">🗺️</span>Heatmap</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">My Courses</div><span class="b bi mls">2 Active Courses</span></div>
+      <div class="pg"><div style="padding:18px;display:flex;flex-direction:column;gap:12px;max-width:760px">
+        <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--inv)">
+          📋 Your courses are shown below. Students join using the course code you share with them in class.
+        </div>
+        <div class="course-card" onclick="goTo('idash')" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:15px;font-weight:800;color:var(--tx)">Data Structures — Section A</span><span class="b bg">Active</span></div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">BSEF · Fall 2026 · 28 students enrolled</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="b bi">28 Students</span><span class="b br">7 High Dependency</span><span class="b by">13 Moderate</span><span class="b bg">8 Low</span>
+            </div>
+          </div>
+          <div class="cc-code"><div class="cc-code-lbl">CODE</div><div class="cc-code-val">CS301</div></div>
+        </div>
+        <div class="course-card" onclick="goTo('idash')" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:15px;font-weight:800;color:var(--tx)">Object Oriented Programming — Section B</span><span class="b bg">Active</span></div>
+            <div style="font-size:12px;color:var(--mu);margin-bottom:12px">BSEF · Fall 2026 · 31 students enrolled</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="b bi">31 Students</span><span class="b br">4 High Dependency</span><span class="b by">16 Moderate</span><span class="b bg">11 Low</span>
+            </div>
+          </div>
+          <div class="cc-code" style="background:var(--grd2)"><div class="cc-code-lbl">CODE</div><div class="cc-code-val">OOP-B</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  INSTRUCTOR DASHBOARD  ════════════ -->
+<div id="idash" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-i">S</div><div class="sb-usr-t"><div class="nm">Sanam Ahmad</div><div class="rl">Instructor</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('icourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni on"><span class="ic">🏠</span>Dashboard</button>
+        <button class="ni" onclick="goTo('idetail')"><span class="ic">👤</span>Student Detail</button>
+        <button class="ni" onclick="goTo('iheat')"><span class="ic">🗺️</span>Heatmap</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Data Structures — Section A</div><span class="b bi mls">CS301</span><span class="b bi mls">28 Students</span><button onclick="goTo('icourses')" class="btn btn-ghost btn-sm ml">Switch Course</button></div>
+      <div class="pg"><div class="dash">
+        <div class="sg" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat"><div class="v">52.4</div><div class="l">Course Avg Dependency</div><div class="c cu">↓ 4.2 this week</div></div>
+          <div class="stat"><div class="v" style="color:var(--re)">7</div><div class="l">High Dependency Students</div><div class="c cd">↑ 2 this week</div></div>
+          <div class="stat"><div class="v">68%</div><div class="l">Avg Quiz Score</div><div class="c cu">↑ 5% this week</div></div>
+        </div>
+        <div class="stbl" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr">
+          <div class="stbl-h" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr"><span>Student</span><span>Score</span><span>Band</span><span>Hint Avg</span><span>Quiz</span></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Hamza Tariq</div><div class="s-rl">BSEF23M512</div></div><div class="tc" style="color:var(--re);font-weight:700">81</div><div><span class="b br">High</span></div><div class="tc">3.8</div><div class="tc">38%</div></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Kiran Shafiq</div><div class="s-rl">BSEF23M519</div></div><div class="tc" style="color:var(--re);font-weight:700">74</div><div><span class="b br">High</span></div><div class="tc">3.2</div><div class="tc">44%</div></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Omar Yusuf</div><div class="s-rl">BSEF23M531</div></div><div class="tc" style="color:var(--ye);font-weight:700">63</div><div><span class="b by">Mod</span></div><div class="tc">2.4</div><div class="tc">61%</div></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Aiman Sajid</div><div class="s-rl">BSEF23M508</div></div><div class="tc" style="color:var(--ye);font-weight:700">55</div><div><span class="b by">Mod</span></div><div class="tc">2.1</div><div class="tc">67%</div></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Abdullah</div><div class="s-rl">BSEF23M526</div></div><div class="tc" style="color:var(--gr);font-weight:700">32</div><div><span class="b bg">Low</span></div><div class="tc">1.4</div><div class="tc">74%</div></div>
+          <div class="stbl-r" style="grid-template-columns:2fr .7fr 1fr .7fr .8fr" onclick="goTo('idetail')"><div><div class="s-nm">Zara Iqbal</div><div class="s-rl">BSEF23M539</div></div><div class="tc" style="color:var(--gr);font-weight:700">24</div><div><span class="b bg">Low</span></div><div class="tc">1.0</div><div class="tc">88%</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  STUDENT DETAIL  ════════════ -->
+<div id="idetail" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-i">S</div><div class="sb-usr-t"><div class="nm">Sanam Ahmad</div><div class="rl">Instructor</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('icourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('idash')"><span class="ic">🏠</span>Dashboard</button>
+        <button class="ni on"><span class="ic">👤</span>Student Detail</button>
+        <button class="ni" onclick="goTo('iheat')"><span class="ic">🗺️</span>Heatmap</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="tb"><button onclick="goTo('idash')" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--mu);padding:0;margin-right:6px;font-family:Inter,sans-serif">← Back</button><div class="tb-title">Hamza Tariq — BSEF23M512</div><span class="b br mls">High Dependency</span><button class="btn btn-pri btn-sm ml">Export PDF</button></div>
+      <div class="pg"><div class="dash">
+        <div class="card" style="padding:18px;display:flex;align-items:center;gap:18px">
+          <div style="width:52px;height:52px;border-radius:50%;background:var(--rel);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:var(--re);flex-shrink:0">H</div>
+          <div style="flex:1"><div style="font-size:17px;font-weight:800;letter-spacing:-.3px">Hamza Tariq</div><div style="font-size:12px;color:var(--mu);margin-top:3px">BSEF23M512 · bsef23m512@pucit.edu.pk</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="b br">Score: 81 — High</span><span class="b by">Hint Avg: 3.8</span><span class="b br">Quiz: 38%</span><span class="b bi">12 Sessions</span></div></div>
+        </div>
+        <div class="g2">
+          <div class="card card-b">
+            <div class="card-title">Dependency Trend — No Improvement</div>
+            <div class="chart-box">
+              <svg width="100%" height="128" viewBox="0 0 260 128" preserveAspectRatio="none">
+                <defs><linearGradient id="rg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#EF4444" stop-opacity=".2"/><stop offset="100%" stop-color="#EF4444" stop-opacity="0"/></linearGradient></defs>
+                <path d="M0 52 C52 52 52 48 104 50 S156 56 208 54 S246 52 260 50 L260 128 L0 128Z" fill="url(#rg1)"/>
+                <polyline points="0,52 52,48 104,50 156,56 208,54 260,50" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="0" cy="52" r="4" fill="#EF4444"/><circle cx="52" cy="48" r="4" fill="#EF4444"/><circle cx="104" cy="50" r="4" fill="#EF4444"/><circle cx="156" cy="56" r="4" fill="#EF4444"/><circle cx="208" cy="54" r="4" fill="#EF4444"/>
+                <circle cx="260" cy="50" r="5" fill="#EF4444" stroke="#080C1A" stroke-width="2.5"/>
+                <line x1="0" y1="48" x2="260" y2="48" stroke="#EF4444" stroke-width="1" stroke-dasharray="4,3" opacity=".3"/>
+                <text x="2" y="44" font-size="9" fill="var(--re)" font-family="Inter" opacity=".6">High threshold</text>
+                <text x="248" y="44" font-size="10" fill="var(--re)" font-weight="bold" font-family="Inter">81</text>
+              </svg>
+            </div>
+          </div>
+          <div class="card card-b">
+            <div class="card-title">Quiz Scores by Topic</div>
+            <div class="chart-box" style="display:flex;align-items:flex-end;padding-bottom:20px">
+              <svg width="100%" height="128" viewBox="0 0 250 128" preserveAspectRatio="none">
+                <rect x="10" y="90" width="34" height="30" fill="#EF4444" rx="4"/><text x="27" y="86" font-size="9" fill="var(--re)" font-family="Inter" font-weight="600" text-anchor="middle">38%</text><text x="27" y="122" font-size="8" fill="var(--su)" font-family="Inter" text-anchor="middle">Recursion</text>
+                <rect x="57" y="76" width="34" height="44" fill="#D97706" rx="4"/><text x="74" y="72" font-size="9" fill="var(--ye)" font-family="Inter" font-weight="600" text-anchor="middle">44%</text><text x="74" y="122" font-size="8" fill="var(--su)" font-family="Inter" text-anchor="middle">Trees</text>
+                <rect x="104" y="60" width="34" height="60" fill="#D97706" rx="4"/><text x="121" y="56" font-size="9" fill="var(--ye)" font-family="Inter" font-weight="600" text-anchor="middle">58%</text><text x="121" y="122" font-size="8" fill="var(--su)" font-family="Inter" text-anchor="middle">Lists</text>
+                <rect x="151" y="46" width="34" height="74" fill="#10B981" rx="4"/><text x="168" y="42" font-size="9" fill="var(--gr)" font-family="Inter" font-weight="600" text-anchor="middle">72%</text><text x="168" y="122" font-size="8" fill="var(--su)" font-family="Inter" text-anchor="middle">Sorting</text>
+                <rect x="198" y="84" width="34" height="36" fill="#EF4444" rx="4"/><text x="215" y="80" font-size="9" fill="var(--re)" font-family="Inter" font-weight="600" text-anchor="middle">30%</text><text x="215" y="122" font-size="8" fill="var(--su)" font-family="Inter" text-anchor="middle">Graphs</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="card card-b">
+          <div class="card-title">Latest Reflections</div>
+          <div class="sess-list">
+            <div class="sess-it" style="flex-direction:column;align-items:flex-start;gap:5px;cursor:default"><div style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-size:12px;font-weight:600">Recursion · 2 days ago</span><span class="b br" style="margin-left:auto">81</span></div><div style="font-size:12px;color:var(--mu)"><strong style="color:var(--tx)">Learned:</strong> "The base case stops recursion but I kept forgetting to define it first."</div><div style="font-size:12px;color:var(--mu)"><strong style="color:var(--tx)">Next time:</strong> "I will request the full solution less — I got to Level 4 hint too fast."</div></div>
+            <div class="sess-it" style="flex-direction:column;align-items:flex-start;gap:5px;cursor:default"><div style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-size:12px;font-weight:600">Graphs · 3 days ago</span><span class="b br" style="margin-left:auto">79</span></div><div style="font-size:12px;color:var(--mu)"><strong style="color:var(--tx)">Learned:</strong> "BFS uses a queue, DFS uses a stack — I still confuse when to use which."</div><div style="font-size:12px;color:var(--mu)"><strong style="color:var(--tx)">Next time:</strong> "Spend more time thinking before requesting hints."</div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  HEATMAP  ════════════ -->
+<div id="iheat" class="sc">
+  <div class="app">
+    <div class="sb">
+      <div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-i">S</div><div class="sb-usr-t"><div class="nm">Sanam Ahmad</div><div class="rl">Instructor</div></div></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('icourses')"><span class="ic">📚</span>My Courses</button>
+        <button class="ni" onclick="goTo('idash')"><span class="ic">🏠</span>Dashboard</button>
+        <button class="ni" onclick="goTo('idetail')"><span class="ic">👤</span>Student Detail</button>
+        <button class="ni on"><span class="ic">🗺️</span>Heatmap</button>
+        <div class="nsep"></div>
+        <button class="ni" onclick="goTo('login')"><span class="ic">→</span>Sign Out</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Topic Weakness Heatmap</div><span class="ml" style="font-size:11px;color:var(--mu)">Data Structures · 28 students · Week 5</span></div>
+      <div class="pg"><div class="dash">
+        <div class="card card-b">
+          <div class="card-title">Quiz Score & Dependency by Topic</div>
+          <p style="font-size:12px;color:var(--mu);margin-top:-8px;margin-bottom:12px">Red = class weakness. Green = strong area. Hover cells for details.</p>
+          <div style="overflow-x:auto">
+            <div class="hg" style="grid-template-columns:120px repeat(6,1fr);min-width:580px">
+              <div></div><div class="hc-h">Recursion</div><div class="hc-h">Linked Lists</div><div class="hc-h">Binary Trees</div><div class="hc-h">Sorting</div><div class="hc-h">Graphs</div><div class="hc-h">Stacks</div>
+              <div class="hr-l">Quiz Score</div>
+              <div class="hc" style="background:#B91C1C" title="Recursion — Quiz avg: 41%">41%</div><div class="hc" style="background:#B45309" title="Linked Lists — Quiz avg: 63%">63%</div><div class="hc" style="background:#B45309" title="Binary Trees — Quiz avg: 58%">58%</div><div class="hc" style="background:#065F46" title="Sorting — Quiz avg: 79%">79%</div><div class="hc" style="background:#B91C1C" title="Graphs — Quiz avg: 38%">38%</div><div class="hc" style="background:#065F46" title="Stacks — Quiz avg: 82%">82%</div>
+              <div class="hr-l">Hint Avg</div>
+              <div class="hc" style="background:#991B1B" title="Recursion — Avg hint level: 3.7">3.7</div><div class="hc" style="background:#92400E" title="Linked Lists — Avg hint: 2.3">2.3</div><div class="hc" style="background:#92400E" title="Binary Trees — Avg hint: 2.8">2.8</div><div class="hc" style="background:#064E3B" title="Sorting — Avg hint: 1.4">1.4</div><div class="hc" style="background:#991B1B" title="Graphs — Avg hint: 3.9">3.9</div><div class="hc" style="background:#064E3B" title="Stacks — Avg hint: 1.2">1.2</div>
+              <div class="hr-l">% High Dep.</div>
+              <div class="hc" style="background:#B91C1C" title="Recursion — 68% students high dependency">68%</div><div class="hc" style="background:#B45309" title="Linked Lists — 32%">32%</div><div class="hc" style="background:#B45309" title="Binary Trees — 45%">45%</div><div class="hc" style="background:#065F46" title="Sorting — 11%">11%</div><div class="hc" style="background:#991B1B" title="Graphs — 72%">72%</div><div class="hc" style="background:#065F46" title="Stacks — 8%">8%</div>
+              <div class="hr-l">Top Mistake</div>
+              <div class="hc" style="background:#7F1D1D;font-size:16px" title="Top mistake: No base case defined">⚠</div><div class="hc" style="background:#78350F;font-size:16px" title="Top mistake: Lost pointer on reversal">⚠</div><div class="hc" style="background:#78350F;font-size:16px" title="Top mistake: Wrong traversal order">⚠</div><div class="hc" style="background:#022C22;font-size:16px" title="Top mistake: Off-by-one in loop">✓</div><div class="hc" style="background:#7F1D1D;font-size:16px" title="Top mistake: BFS vs DFS confusion">⚠</div><div class="hc" style="background:#022C22;font-size:16px" title="Top mistake: LIFO vs FIFO mix-up">✓</div>
+            </div>
+          </div>
+        </div>
+        <div class="g2">
+          <div class="card card-b">
+            <div class="card-title">Reteach Priority</div>
+            <div class="wt-row"><div class="wt-nm">Graphs</div><div class="wt-bar"><div class="wt-f" style="width:92%;background:var(--re)"></div></div><div class="wt-p" style="color:var(--re)">72%</div></div>
+            <div class="wt-row"><div class="wt-nm">Recursion</div><div class="wt-bar"><div class="wt-f" style="width:85%;background:var(--re)"></div></div><div class="wt-p" style="color:var(--re)">68%</div></div>
+            <div class="wt-row"><div class="wt-nm">Binary Trees</div><div class="wt-bar"><div class="wt-f" style="width:56%;background:var(--ye)"></div></div><div class="wt-p" style="color:var(--ye)">45%</div></div>
+            <div class="wt-row"><div class="wt-nm">Linked Lists</div><div class="wt-bar"><div class="wt-f" style="width:40%;background:var(--ye)"></div></div><div class="wt-p" style="color:var(--ye)">32%</div></div>
+            <div class="wt-row"><div class="wt-nm">Sorting</div><div class="wt-bar"><div class="wt-f" style="width:14%;background:var(--gr)"></div></div><div class="wt-p" style="color:var(--gr)">11%</div></div>
+          </div>
+          <div class="card card-b">
+            <div class="card-title">Class Distribution</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--re)">High</span><span style="font-size:12px;font-weight:700;color:var(--re)">7 students · 25%</span></div><div style="height:8px;background:var(--sf2);border-radius:4px;overflow:hidden"><div style="width:25%;height:100%;background:var(--re);border-radius:4px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--ye)">Moderate</span><span style="font-size:12px;font-weight:700;color:var(--ye)">13 students · 46%</span></div><div style="height:8px;background:var(--sf2);border-radius:4px;overflow:hidden"><div style="width:46%;height:100%;background:var(--ye);border-radius:4px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;font-weight:600;color:var(--gr)">Low</span><span style="font-size:12px;font-weight:700;color:var(--gr)">8 students · 29%</span></div><div style="height:8px;background:var(--sf2);border-radius:4px;overflow:hidden"><div style="width:29%;height:100%;background:var(--gr);border-radius:4px"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  404 NOT FOUND  ════════════ -->
+<div id="e404" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div><div class="nav" style="margin-top:16px"><button class="ni" onclick="goTo('login')"><span class="ic">←</span>Back to Login</button></div></div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Page Not Found</div></div>
+      <div class="pg"><div class="err-pg">
+        <div class="err-illustration">
+          <svg viewBox="0 0 200 160" width="220" height="176">
+            <defs><radialGradient id="eg1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#6366F1" stop-opacity=".15"/><stop offset="100%" stop-color="#6366F1" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="100" cy="130" rx="80" ry="16" fill="url(#eg1)"/>
+            <!-- Disconnected nodes -->
+            <circle cx="100" cy="60" r="22" fill="none" stroke="#6366F1" stroke-width="2" stroke-dasharray="6 4" opacity=".5"/>
+            <circle cx="100" cy="60" r="10" fill="#6366F1" opacity=".3"/>
+            <text x="100" y="65" text-anchor="middle" font-size="14" fill="#6366F1" font-weight="800" opacity=".6">?</text>
+            <!-- Broken connections -->
+            <line x1="40" y1="40" x2="72" y2="54" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="4 4" opacity=".4"/>
+            <line x1="160" y1="40" x2="128" y2="54" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="4 4" opacity=".4"/>
+            <line x1="100" y1="82" x2="100" y2="110" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="4 4" opacity=".4"/>
+            <circle cx="38" cy="38" r="6" fill="#8B5CF6" opacity=".5"/><circle cx="162" cy="38" r="6" fill="#8B5CF6" opacity=".5"/>
+            <circle cx="100" cy="116" r="6" fill="#8B5CF6" opacity=".5"/>
+          </svg>
+        </div>
+        <div class="err-code">404 — Page Not Found</div>
+        <div class="err-title">Lost in the Network</div>
+        <div class="err-desc">The page you're looking for doesn't exist or has been moved. Check the URL or navigate back to a known page.</div>
+        <div class="err-actions">
+          <button class="btn btn-sec" onclick="history.back()">← Go Back</button>
+          <button class="btn btn-pri" onclick="goTo('login')">Go to Login →</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  403 UNAUTHORIZED  ════════════ -->
+<div id="e403" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div><div class="nav" style="margin-top:16px"><button class="ni" onclick="goTo('login')"><span class="ic">←</span>Back to Login</button></div></div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Access Denied</div></div>
+      <div class="pg"><div class="err-pg">
+        <div class="err-illustration">
+          <svg viewBox="0 0 200 160" width="220" height="176">
+            <defs><radialGradient id="eg2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#EF4444" stop-opacity=".12"/><stop offset="100%" stop-color="#EF4444" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="100" cy="130" rx="80" ry="16" fill="url(#eg2)"/>
+            <!-- Shield -->
+            <path d="M100 20 L136 34 L136 68 Q136 96 100 112 Q64 96 64 68 L64 34 Z" fill="none" stroke="#EF4444" stroke-width="2.5" opacity=".6"/>
+            <path d="M100 30 L128 42 L128 68 Q128 90 100 104 Q72 90 72 68 L72 42 Z" fill="rgba(239,68,68,0.1)"/>
+            <!-- Lock icon inside shield -->
+            <rect x="88" y="62" width="24" height="18" rx="3" fill="#EF4444" opacity=".6"/>
+            <path d="M92 62 L92 56 Q92 48 100 48 Q108 48 108 56 L108 62" fill="none" stroke="#EF4444" stroke-width="2" opacity=".6"/>
+            <circle cx="100" cy="71" r="3" fill="white" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="err-code">403 — Forbidden</div>
+        <div class="err-title">Access Denied</div>
+        <div class="err-desc">You don't have permission to view this page. This area may be restricted to a different role. Sign in with the correct account to continue.</div>
+        <div class="err-actions">
+          <button class="btn btn-sec" onclick="history.back()">← Go Back</button>
+          <button class="btn btn-pri" onclick="goTo('login')">Sign In Again →</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  401 SESSION EXPIRED  ════════════ -->
+<div id="e401" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div><div class="nav" style="margin-top:16px"><button class="ni" onclick="goTo('login')"><span class="ic">←</span>Back to Login</button></div></div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Session Expired</div></div>
+      <div class="pg"><div class="err-pg">
+        <div class="err-illustration">
+          <svg viewBox="0 0 200 160" width="220" height="176">
+            <defs><radialGradient id="eg3" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#F59E0B" stop-opacity=".15"/><stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="100" cy="130" rx="80" ry="16" fill="url(#eg3)"/>
+            <!-- Clock face -->
+            <circle cx="100" cy="66" r="40" fill="none" stroke="#F59E0B" stroke-width="2.5" opacity=".5"/>
+            <circle cx="100" cy="66" r="35" fill="rgba(245,158,11,0.07)"/>
+            <circle cx="100" cy="66" r="3" fill="#F59E0B" opacity=".8"/>
+            <!-- Clock hands -->
+            <line x1="100" y1="66" x2="100" y2="38" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+            <line x1="100" y1="66" x2="120" y2="72" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+            <!-- Tick marks -->
+            <line x1="100" y1="30" x2="100" y2="34" stroke="#F59E0B" stroke-width="2" opacity=".4"/>
+            <line x1="100" y1="98" x2="100" y2="102" stroke="#F59E0B" stroke-width="2" opacity=".4"/>
+            <line x1="62" y1="66" x2="66" y2="66" stroke="#F59E0B" stroke-width="2" opacity=".4"/>
+            <line x1="134" y1="66" x2="138" y2="66" stroke="#F59E0B" stroke-width="2" opacity=".4"/>
+          </svg>
+        </div>
+        <div class="err-code">401 — Unauthorized</div>
+        <div class="err-title">Session Ended</div>
+        <div class="err-desc">Your session has expired for security. This usually happens after 24 hours of inactivity. Please sign in again to continue your work.</div>
+        <div class="err-actions">
+          <button class="btn btn-pri btn-full" onclick="goTo('login')" style="max-width:220px">Sign In Again →</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  500 SERVER ERROR  ════════════ -->
+<div id="e500" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div><div class="nav" style="margin-top:16px"><button class="ni" onclick="goTo('login')"><span class="ic">←</span>Back to Login</button></div></div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Server Error</div></div>
+      <div class="pg"><div class="err-pg">
+        <div class="err-illustration">
+          <svg viewBox="0 0 200 160" width="220" height="176">
+            <defs><radialGradient id="eg4" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#EF4444" stop-opacity=".1"/><stop offset="100%" stop-color="#EF4444" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="100" cy="130" rx="80" ry="16" fill="url(#eg4)"/>
+            <!-- Broken network nodes -->
+            <circle cx="100" cy="55" r="16" fill="rgba(239,68,68,0.15)" stroke="#EF4444" stroke-width="2" opacity=".6"/>
+            <text x="100" y="61" text-anchor="middle" font-size="16" fill="#EF4444" font-weight="900" opacity=".7">!</text>
+            <!-- Broken connections with X marks -->
+            <line x1="42" y1="36" x2="78" y2="48" stroke="#EF4444" stroke-width="1.5" opacity=".4" stroke-dasharray="4 3"/>
+            <line x1="158" y1="36" x2="122" y2="48" stroke="#EF4444" stroke-width="1.5" opacity=".4" stroke-dasharray="4 3"/>
+            <line x1="100" y1="72" x2="100" y2="100" stroke="#EF4444" stroke-width="1.5" opacity=".4" stroke-dasharray="4 3"/>
+            <!-- Side nodes -->
+            <circle cx="40" cy="34" r="8" fill="rgba(239,68,68,0.2)" stroke="#EF4444" stroke-width="1.5" opacity=".5"/>
+            <circle cx="160" cy="34" r="8" fill="rgba(239,68,68,0.2)" stroke="#EF4444" stroke-width="1.5" opacity=".5"/>
+            <circle cx="100" cy="106" r="8" fill="rgba(239,68,68,0.2)" stroke="#EF4444" stroke-width="1.5" opacity=".5"/>
+            <text x="40" y="38" text-anchor="middle" font-size="10" fill="#EF4444" opacity=".8">✗</text>
+            <text x="160" y="38" text-anchor="middle" font-size="10" fill="#EF4444" opacity=".8">✗</text>
+            <text x="100" y="110" text-anchor="middle" font-size="10" fill="#EF4444" opacity=".8">✗</text>
+          </svg>
+        </div>
+        <div class="err-code">500 — Internal Server Error</div>
+        <div class="err-title">Something Broke</div>
+        <div class="err-desc">Our server encountered an unexpected error. This has been logged and our team will investigate. Please try again in a moment.</div>
+        <div class="err-actions">
+          <button class="btn btn-sec" onclick="window.location.reload()">↺ Retry</button>
+          <button class="btn btn-pri" onclick="goTo('login')">Go to Login →</button>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  NETWORK ERROR (inline component demo)  ════════════ -->
+<div id="enet" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div><div class="nav" style="margin-top:16px"><button class="ni" onclick="goTo('login')"><span class="ic">←</span>Back to Login</button></div></div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Network Error — Component Demo</div></div>
+      <div class="pg"><div style="padding:20px;display:flex;flex-direction:column;gap:14px;max-width:680px">
+        <p style="font-size:13px;color:var(--mu)">This shows how network errors appear as non-blocking banners inside the app — not as full page replacements.</p>
+        <!-- Top banner error -->
+        <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:18px;flex-shrink:0">📡</span>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--re)">Connection Lost</div><div style="font-size:12px;color:var(--mu);margin-top:2px">Reconnecting in <span id="countdown" style="font-weight:700;color:var(--re)">5</span>s…</div></div>
+          <button class="btn btn-sec btn-sm" onclick="startCountdown()" style="border-color:rgba(239,68,68,.3);color:var(--re)">Retry Now</button>
+        </div>
+        <!-- WebSocket disconnected inside chat -->
+        <div class="card card-b">
+          <div class="card-title">WebSocket Disconnect — Chat View</div>
+          <div style="background:var(--sf2);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-size:13px;color:var(--mu);margin-bottom:10px">⚡ Real-time connection lost. Messages may not send.</div>
+            <button class="btn btn-pri btn-sm" onclick="this.textContent='Reconnecting…';setTimeout(()=>this.textContent='Reconnect',1800)">Reconnect WebSocket</button>
+          </div>
+        </div>
+        <!-- Offline toast -->
+        <div class="card card-b">
+          <div class="card-title">Offline Toast — Appears at bottom right</div>
+          <div style="position:relative;height:80px;background:var(--sf2);border-radius:10px">
+            <div style="position:absolute;bottom:12px;right:12px;background:var(--bg3);border:1px solid var(--bd2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.3)">
+              <span style="font-size:14px">🌐</span>
+              <div><div style="font-size:12px;font-weight:700;color:var(--tx)">No internet</div><div style="font-size:11px;color:var(--mu)">Check your connection</div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  LLM TIMEOUT  ════════════ -->
+<div id="ellm" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav"><button class="ni on"><span class="ic">💬</span>Tutor Chat</button></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Data Structures · Linked Lists</div><span class="b br mls">AI Timeout</span></div>
+      <div class="pg">
+        <div class="chat-msgs" style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+          <div class="msg bot"><div class="m-av bot">C</div><div><div class="bub">Let's think through this together. What happens to the <code>next</code> pointer when you reverse a linked list?</div><div class="mtime">3:42 PM</div></div></div>
+          <div class="msg me"><div class="m-av stu">A</div><div><div class="bub">I think each node needs to point to the previous one instead</div><div class="mtime">3:43 PM</div></div></div>
+          <!-- LLM timeout message -->
+          <div class="msg bot"><div class="m-av bot" style="background:rgba(239,68,68,.2);color:var(--re)">!</div>
+            <div>
+              <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:3px 14px 14px 14px;padding:12px 14px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:14px">⏱️</span><span style="font-size:13px;font-weight:700;color:var(--re)">AI is thinking longer than usual</span></div>
+                <div style="font-size:12px;color:var(--mu);margin-bottom:10px">The response is taking more than 15 seconds. This can happen during peak hours. Your message was saved.</div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-sec btn-sm" onclick="this.textContent='Retrying…';setTimeout(()=>this.textContent='↺ Retry',1800)">↺ Retry</button>
+                  <button class="btn btn-ghost btn-sm">Wait longer</button>
+                </div>
+              </div>
+              <div class="mtime">CogniCode · 3:43 PM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  RATE LIMIT  ════════════ -->
+<div id="erate" class="sc">
+  <div class="app">
+    <div class="sb"><div class="sb-top"><div class="sb-logo"><svg viewBox="0 0 48 48" width="32" height="32" class="lsvg"></svg><div class="sb-logo-t"><h2>CogniCode</h2><p>AI Teaching Assistant</p></div></div></div>
+      <div class="sb-usr"><div class="av av-s">A</div><div class="sb-usr-t"><div class="nm">Abdullah</div><div class="rl">Student · Learner</div></div></div>
+      <div class="nav"><button class="ni on"><span class="ic">💬</span>Tutor Chat</button></div>
+    </div>
+    <div class="main">
+      <div class="tb"><div class="tb-title">Data Structures · Linked Lists</div><span class="b by mls">Rate Limited</span></div>
+      <div class="pg">
+        <div style="padding:20px;max-width:560px">
+          <!-- Rate limit banner at top of chat -->
+          <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:20px;margin-bottom:16px;text-align:center">
+            <div style="font-size:32px;margin-bottom:10px">🚦</div>
+            <div style="font-size:15px;font-weight:800;color:var(--am);margin-bottom:6px">Slow Down a Little</div>
+            <div style="font-size:13px;color:var(--mu);margin-bottom:16px">You've sent too many messages too quickly. CogniCode limits requests to encourage thoughtful attempts rather than rapid-fire questions.</div>
+            <!-- Cooldown timer -->
+            <div style="background:var(--sf2);border:1px solid var(--bd2);border-radius:10px;padding:14px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;color:var(--su);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Cooldown Period</div>
+              <div style="font-size:36px;font-weight:900;color:var(--am);letter-spacing:-.5px" id="rl-timer">0:45</div>
+              <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:10px;overflow:hidden"><div style="width:60%;height:100%;background:var(--grd2);border-radius:2px;transition:width 1s linear" id="rl-bar"></div></div>
+            </div>
+            <div style="font-size:12px;color:var(--mu)">Use this time to think through your problem. What have you tried so far? When the timer ends your chat will resume automatically.</div>
+          </div>
+          <!-- Encourage reflection during cooldown -->
+          <div class="card card-b">
+            <div class="card-title">While you wait — reflect</div>
+            <div style="font-size:13px;color:var(--mu);margin-bottom:12px">What is the core concept behind the problem you're working on?</div>
+            <textarea class="fi" placeholder="Write your thoughts here…" style="height:80px;resize:none;margin-bottom:0"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  MODALS  ════════════ -->
+<div id="jm" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;padding:30px;width:400px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:scIn .25s ease">
+    <h3 style="font-size:16px;font-weight:800;margin-bottom:6px;letter-spacing:-.3px">Join a Course</h3>
+    <p style="font-size:13px;color:var(--mu);margin-bottom:18px">Enter the code your instructor shared with your class.</p>
+    <div class="fl">Course Join Code</div>
+    <input class="fi" id="jcode" placeholder="e.g. CS301" style="font-family:'JetBrains Mono',monospace;font-size:16px;letter-spacing:2px;text-transform:uppercase"/>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:16px">Once joined, your course sessions and progress will appear under My Courses.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-sec" style="flex:1" onclick="closeM('jm')">Cancel</button>
+      <button class="btn btn-pri" style="flex:1" onclick="closeM('jm');goTo('scourses')">Join Course →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════  DEMO NAV  ════════════ -->
+<div class="dn">
+  <span class="dn-lbl">🧠</span>
+  <span class="dn-lbl" style="padding:0">Auth</span>
+  <button class="dnb on" id="d-login" onclick="goTo('login')">Login</button>
+  <div class="dn-sep"></div>
+  <span class="dn-lbl" style="padding:0">Student</span>
+  <button class="dnb" id="d-scourses" onclick="goTo('scourses')">Courses</button>
+  <button class="dnb" id="d-chat" onclick="goTo('chat')">Chat</button>
+  <button class="dnb" id="d-sdash" onclick="goTo('sdash')">Dashboard</button>
+  <button class="dnb" id="d-refl" onclick="goTo('refl')">Reflections</button>
+  <button class="dnb" id="d-quiz" onclick="goTo('quiz')">Quiz</button>
+  <div class="dn-sep"></div>
+  <span class="dn-lbl" style="padding:0">Instructor</span>
+  <button class="dnb" id="d-icourses" onclick="goTo('icourses')">Courses</button>
+  <button class="dnb" id="d-idash" onclick="goTo('idash')">Dashboard</button>
+  <button class="dnb" id="d-idetail" onclick="goTo('idetail')">Student</button>
+  <button class="dnb" id="d-iheat" onclick="goTo('iheat')">Heatmap</button>
+  <div class="dn-sep"></div>
+  <span class="dn-lbl" style="padding:0">Errors</span>
+  <button class="dnb" id="d-e404" onclick="goTo('e404')" style="background:rgba(239,68,68,.12);color:var(--re)">404</button>
+  <button class="dnb" id="d-e403" onclick="goTo('e403')" style="background:rgba(239,68,68,.12);color:var(--re)">403</button>
+  <button class="dnb" id="d-e401" onclick="goTo('e401')" style="background:rgba(245,158,11,.12);color:var(--am)">401</button>
+  <button class="dnb" id="d-e500" onclick="goTo('e500')" style="background:rgba(239,68,68,.12);color:var(--re)">500</button>
+  <button class="dnb" id="d-enet" onclick="goTo('enet')" style="background:rgba(239,68,68,.12);color:var(--re)">Network</button>
+  <button class="dnb" id="d-ellm" onclick="goTo('ellm')" style="background:rgba(245,158,11,.12);color:var(--am)">LLM Timeout</button>
+  <button class="dnb" id="d-erate" onclick="goTo('erate')" style="background:rgba(245,158,11,.12);color:var(--am)">Rate Limit</button>
+  <div class="dn-sep"></div>
+  <button class="dnb" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark">🌙 Dark</button>
+</div>
+
+<script>
+// ── Neural background canvas ──────────────────────────────────────
+const cnv=document.getElementById('nc');
+const ctx=cnv.getContext('2d');
+let W,H,pts=[];
+function resize(){W=cnv.width=window.innerWidth;H=cnv.height=window.innerHeight;pts=[];for(let i=0;i<60;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3})}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1});
+  pts.forEach((a,i)=>{pts.slice(i+1).forEach(b=>{const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<120){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(99,102,241,${.12*(1-d/120)})`;ctx.lineWidth=.8;ctx.stroke()}})});
+  pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,1.5,0,Math.PI*2);ctx.fillStyle='rgba(99,102,241,0.25)';ctx.fill()});
+  requestAnimationFrame(draw);
+}
+window.addEventListener('resize',resize);resize();draw();
+
+// ── Inject logo SVG ───────────────────────────────────────────────
+const lsrc=document.getElementById('ltpl').innerHTML;
+document.querySelectorAll('.lsvg').forEach(el=>el.innerHTML=lsrc);
+
+// ── Theme toggle ─────────────────────────────────────────────────
+let isDark=true;
+function toggleTheme(){
+  isDark=!isDark;
+  const btn=document.getElementById('theme-btn');
+  if(isDark){
+    document.documentElement.removeAttribute('data-theme');
+    btn.textContent='🌙 Dark';
+    btn.style.background='';btn.style.color='';
+  }else{
+    document.documentElement.setAttribute('data-theme','light');
+    btn.textContent='☀️ Light';
+    btn.style.background='rgba(79,70,229,.15)';btn.style.color='#4F46E5';
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────
+function goTo(id){
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('.dnb').forEach(b=>b.classList.remove('on'));
+  const d=document.getElementById('d-'+id);
+  if(d)d.classList.add('on');
+  // inject logos into newly visible screen
+  document.getElementById(id).querySelectorAll('.lsvg').forEach(el=>{if(!el.innerHTML.trim())el.innerHTML=lsrc;});
+}
+
+// ── Auth (Two Roles: student | instructor) ────────────────────────
+let selectedRole='student';
+function selRole(role){
+  selectedRole=role;
+  const s=document.getElementById('role-stu');
+  const i=document.getElementById('role-ins');
+  if(s)s.classList.toggle('on',role==='student');
+  if(i)i.classList.toggle('on',role==='instructor');
+}
+function atab(t,btn){
+  document.querySelectorAll('#login .tab-row:first-of-type .tab-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('lf').style.display=t==='l'?'block':'none';
+  document.getElementById('rf').style.display=t==='r'?'block':'none';
+  document.getElementById('lerr').style.display='none';
+}
+function doLogin(){
+  const id=document.getElementById('lid').value.trim().toLowerCase();
+  const err=document.getElementById('lerr');
+  if(!id){err.style.display='block';err.textContent='Please enter your email address.';return;}
+  err.style.display='none';
+  if(id.includes('instructor')||id.includes('sanam')||id.includes('teacher')){
+    goTo('icourses');
+  }else{
+    goTo('scourses');
+  }
+}
+function doRegister(){
+  goTo(selectedRole==='instructor'?'icourses':'scourses');
+}
+
+// ── Chat ──────────────────────────────────────────────────────────
+function hkd(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function sendMsg(){
+  const i=document.getElementById('cin'),t=i.value.trim();if(!t)return;
+  const m=document.getElementById('cmsg'),tr=document.getElementById('trow');
+  const el=document.createElement('div');el.className='msg me';
+  el.innerHTML=`<div class="m-av stu">A</div><div><div class="bub">${t}</div><div class="mtime">Just now</div></div>`;
+  m.insertBefore(el,tr);i.value='';tr.style.display='flex';m.scrollTop=m.scrollHeight;
+  setTimeout(()=>{
+    const r=document.createElement('div');r.className='msg bot';
+    r.innerHTML=`<div class="m-av bot">C</div><div><div class="bub">You have the right idea. You need three variables: <code>prev</code>, <code>current</code>, and <code>next_node</code>. Try writing the loop logic — what should happen at each iteration?</div><div class="htag">💡 Level 2 unlocks after your next attempt</div><div class="mtime">CogniCode · Just now</div></div>`;
+    m.insertBefore(r,tr);tr.style.display='none';m.scrollTop=m.scrollHeight;
+  },1800);
+}
+function joinCourse(name){document.getElementById('chat-course').textContent=name.split('—')[0].trim();goTo('chat');}
+
+// ── Quiz ──────────────────────────────────────────────────────────
+let qSel=null;
+const qAns='b';
+function qsel(el,l){
+  document.querySelectorAll('.q-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');qSel=l;
+  document.getElementById('qnxt').disabled=false;
+}
+function qnext(){
+  document.querySelectorAll('.q-opt').forEach(o=>{
+    const l=o.querySelector('.q-lt').textContent.toLowerCase();
+    if(l===qAns)o.classList.add('ok');
+    else if(o.classList.contains('sel'))o.classList.add('ng');
+    o.style.pointerEvents='none';
+  });
+  document.getElementById('qnxt').disabled=true;
+  setTimeout(()=>{
+    document.getElementById('qcard').style.display='none';
+    document.getElementById('qopts').style.display='none';
+    document.querySelector('.q-act').style.display='none';
+    document.getElementById('qres').classList.add('on');
+    document.getElementById('qbadge').textContent='Complete!';
+  },1200);
+}
+function qreset(){
+  document.getElementById('qcard').style.display='block';
+  document.getElementById('qopts').style.display='flex';
+  document.querySelector('.q-act').style.display='flex';
+  document.getElementById('qres').classList.remove('on');
+  document.getElementById('qbadge').textContent='Question 1 of 5';
+  document.getElementById('qnxt').disabled=true;
+  qSel=null;
+  document.querySelectorAll('.q-opt').forEach(o=>{o.classList.remove('sel','ok','ng');o.style.pointerEvents='';});
+}
+
+// ── Modals ────────────────────────────────────────────────────────
+function openM(id){document.getElementById(id).style.display='flex';}
+function closeM(id){document.getElementById(id).style.display='none';}
+
+// ── Network error countdown ───────────────────────────────────────
+let cdInterval=null;
+function startCountdown(){
+  let s=5;
+  const el=document.getElementById('countdown');
+  if(!el)return;
+  if(cdInterval)clearInterval(cdInterval);
+  cdInterval=setInterval(()=>{
+    s--;el.textContent=s;
+    if(s<=0){clearInterval(cdInterval);el.textContent='Reconnecting…';}
+  },1000);
+}
+// Auto-start on network page
+document.addEventListener('DOMContentLoaded',()=>{
+  if(document.getElementById('countdown'))startCountdown();
+});
+</script>
+</body>
+</html>

@@ -28,7 +28,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session as DBSession
 
-from agents import ConversationManager, SocraticTutor, new_state
+from agents import tutoring_graph, new_state
 from auth.jwt_handler import TokenError, decode_access_token
 from db.models import Interaction, Session, User
 from db.session import SessionLocal
@@ -39,11 +39,6 @@ from websocket.connection_manager import manager
 logger = logging.getLogger("cognicode.websocket")
 
 router = APIRouter()
-
-# Instantiate agents once — they are stateless and thread-safe.
-_conversation_manager = ConversationManager()
-_socratic_tutor = SocraticTutor()
-
 
 # =============================================================================
 # HELPERS
@@ -235,15 +230,15 @@ async def _handle_chat(
     db: DBSession,
 ):
     """
-    Process one chat message end-to-end.
+    Process one chat message end-to-end using the multi-agent LangGraph workflow.
 
-    Steps:
-        1. Notify client that the assistant is thinking.
-        2. Build agent state from history + new message.
-        3. Classify intent (Conversation Manager).
-        4. Generate response (Socratic Tutor, calls LLM).
-        5. Persist the interaction.
-        6. Send the response back.
+    Workflow:
+        1. Notify client that assistant is thinking.
+        2. Build AgentState from history, session topic, and current hint level.
+        3. Invoke tutoring_graph (routes through ConversationManager, SocraticTutor,
+           HintGenerator, or AssessmentAgent).
+        4. Persist the interaction and update session metrics.
+        5. Stream the response and hint metadata back to client.
     """
     await manager.send_to(session_id, websocket, {"type": "typing"})
 
@@ -254,24 +249,31 @@ async def _handle_chat(
         message=content,
         history=_recent_history(db, session.id),
         preferred_language=user.preferred_language or "Python",
+        current_hint_level=session.max_hint_level or 0,
     )
 
-    # Classify intent
-    state = _conversation_manager.process(state)
-
-    # Generate response
+    # Execute multi-agent LangGraph orchestration
     try:
-        state = await _socratic_tutor.process(state)
+        state = await tutoring_graph.ainvoke(state)
     except LLMError as exc:
-        logger.warning("LLM error: %s", exc)
+        logger.warning("LLM error in graph invocation: %s", exc)
         await manager.send_to(session_id, websocket, {
             "type": "error",
             "code": "llm_error",
             "message": str(exc) or "The AI is unavailable. Please try again.",
         })
         return
+    except Exception as exc:
+        logger.exception("Unexpected error in multi-agent graph")
+        await manager.send_to(session_id, websocket, {
+            "type": "error",
+            "code": "agent_error",
+            "message": "An error occurred while processing your request.",
+        })
+        return
 
     response_text = state.get("response") or "(no response)"
+    hint_level_given = state.get("current_hint_level") or None
 
     # Persist interaction
     interaction = Interaction(
@@ -281,13 +283,15 @@ async def _handle_chat(
         response=response_text,
         intent=_map_intent(state.get("intent")),
         attempt_detected=state.get("attempt_detected", False),
-        hint_level_given=None,
+        hint_level_given=hint_level_given,
     )
     db.add(interaction)
 
     # Update session aggregates
     if state.get("intent") == "code_request":
         session.solution_requests = (session.solution_requests or 0) + 1
+    if hint_level_given and hint_level_given > (session.max_hint_level or 0):
+        session.max_hint_level = hint_level_given
 
     try:
         db.commit()
@@ -302,12 +306,15 @@ async def _handle_chat(
         })
         return
 
-    # Reply
+    # Reply to client with hint level and understanding check metadata
     await manager.send_to(session_id, websocket, {
         "type": "response",
         "content": response_text,
         "intent": state.get("intent"),
         "attempt_detected": state.get("attempt_detected", False),
+        "hint_level": state.get("current_hint_level", 0),
+        "understanding_check_required": state.get("understanding_check_required", False),
+        "understanding_check_passed": state.get("understanding_check_passed", False),
         "interaction_id": str(interaction.id),
         "elapsed_seconds": state.get("metadata", {}).get("elapsed_seconds"),
     })
@@ -318,11 +325,11 @@ def _map_intent(intent: str | None) -> str | None:
     Map agent-level intents to the DB enum values.
 
     DB enum: concept | code_request | debug | quiz
-    Agent intents: concept_question | code_request | debug | quiz | other
+    Agent intents: concept_question | code_request | debug | quiz | hint_request | other
     """
     if intent is None:
         return None
-    if intent == "concept_question":
+    if intent in ("concept_question", "hint_request"):
         return "concept"
     if intent in ("code_request", "debug", "quiz"):
         return intent
