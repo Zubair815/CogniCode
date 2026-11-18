@@ -1,0 +1,10 @@
+{
+  "description": "A practical design workspace that helps UI/UX, product, and graphic designers refine prototypes into functional, real-world-ready experiences.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

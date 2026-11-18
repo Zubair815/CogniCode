@@ -11,14 +11,37 @@ import { AlertCircle, X, Bot, CheckCircle2, MessageCircleQuestion } from "lucide
 import ChatHeader from "../components/chat/ChatHeader.jsx";
 import ChatInput from "../components/chat/ChatInput.jsx";
 import MessageList from "../components/chat/MessageList.jsx";
+import StartSessionModal from "../components/chat/StartSessionModal.jsx";
 import Button from "../components/ui/Button.jsx";
 import useChatSession from "../hooks/useChatSession.js";
-import { ROUTES } from "../constants/routes.js";
+import { chatService } from "../services/chatService.js";
+import { ROUTES, chatRoute } from "../constants/routes.js";
 
 export default function Chat() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId || sessionId === "active") {
+      chatService
+        .listMySessions()
+        .then((data) => {
+          const active = data?.sessions?.find((s) => !s.ended_at);
+          if (active) {
+            navigate(chatRoute(active.id), { replace: true });
+          } else if (data?.sessions?.length) {
+            navigate(chatRoute(data.sessions[0].id), { replace: true });
+          } else {
+            setModalOpen(true);
+          }
+        })
+        .catch(() => {
+          setModalOpen(true);
+        });
+    }
+  }, [sessionId, navigate]);
 
   const {
     session,
@@ -145,6 +168,12 @@ export default function Chat() {
           </div>
         </div>
       )}
+
+      <StartSessionModal
+        open={modalOpen}
+        onClose={() => navigate(ROUTES.STUDENT_DASHBOARD)}
+        onCreated={(s) => navigate(chatRoute(s.id), { replace: true })}
+      />
     </div>
   );
 }
