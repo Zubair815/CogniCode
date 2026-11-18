@@ -43,6 +43,20 @@ export default function Dashboard({ role }) {
   const [sessions, setSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [cdsData, setCdsData] = useState({
+    score: 32,
+    band: "low",
+    trend: "↓ 8 pts this week",
+    breakdown: {
+      solution_frequency: 22,
+      hint_depth: 28,
+      retry_count: 72,
+      time_gap: 65,
+      debugging_attempts: 78,
+      quiz_performance: 74,
+    },
+    weak_topics: [],
+  });
 
   const isStudent = role === "student";
   const abortRef = useRef(null);
@@ -60,6 +74,15 @@ export default function Dashboard({ role }) {
         signal: controller.signal,
       });
       setSessions(data.sessions || []);
+
+      try {
+        const cds = await chatService.getStudentCdsSummary({
+          signal: controller.signal,
+        });
+        if (cds) setCdsData(cds);
+      } catch {
+        // Fallback to baseline
+      }
     } catch (err) {
       if (isCancel(err)) return;
       setLoadError(err.message || "Could not load sessions.");
@@ -88,23 +111,31 @@ export default function Dashboard({ role }) {
 
   // 6-Factor Cognitive Breakdown signals
   const cognitiveFactors = [
-    { name: "Direct Solution Frequency", value: 22, band: "Low", status: "text-[color:var(--success)]" },
-    { name: "Average Hint Depth", value: 28, band: "Low (Level 1–2)", status: "text-[color:var(--success)]" },
-    { name: "Retry & Perseverance Count", value: 72, band: "High Persistence", status: "text-[color:var(--success)]" },
-    { name: "Interaction Thought Time", value: 65, band: "Healthy (1.5m)", status: "text-[color:var(--success)]" },
-    { name: "Code Debugging Attempts", value: 78, band: "Strong", status: "text-[color:var(--success)]" },
-    { name: "Conceptual Check Accuracy", value: 74, band: "Good", status: "text-[color:var(--success)]" },
+    { name: "Direct Solution Frequency", value: cdsData.breakdown?.solution_frequency ?? 22, band: cdsData.score > 70 ? "High" : "Low" },
+    { name: "Average Hint Depth", value: cdsData.breakdown?.hint_depth ?? 28, band: cdsData.score > 70 ? "High (Level 4–5)" : "Low (Level 1–2)" },
+    { name: "Retry & Perseverance Count", value: cdsData.breakdown?.retry_count ?? 72, band: "High Persistence" },
+    { name: "Interaction Thought Time", value: cdsData.breakdown?.time_gap ?? 65, band: "Healthy (1.5m)" },
+    { name: "Code Debugging Attempts", value: cdsData.breakdown?.debugging_attempts ?? 78, band: "Active Tracing" },
+    { name: "Conceptual Check Accuracy", value: cdsData.breakdown?.quiz_performance ?? 74, band: "Verified" },
   ];
 
   return (
-    <AppLayout activeCds={32}>
+    <AppLayout activeCds={cdsData.score}>
       <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[color:var(--success)]/10 text-[color:var(--success)] font-bold">
-                Low Dependency (CDS 32)
+              <span
+                className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                  cdsData.score > 70
+                    ? "bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
+                    : cdsData.score > 40
+                    ? "bg-[color:var(--warning)]/10 text-[color:var(--warning)]"
+                    : "bg-[color:var(--success)]/10 text-[color:var(--success)]"
+                }`}
+              >
+                {cdsData.band.toUpperCase()} DEPENDENCY (CDS {cdsData.score})
               </span>
               <span className="text-xs text-[color:var(--text-muted)]">
                 Welcome back, {user?.name || "Student"}
@@ -134,14 +165,22 @@ export default function Dashboard({ role }) {
         {/* 4 Stat Tiles */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--success)]">
-              32
+            <div
+              className={`text-2xl md:text-3xl font-black ${
+                cdsData.score > 70
+                  ? "text-[color:var(--danger)]"
+                  : cdsData.score > 40
+                  ? "text-[color:var(--warning)]"
+                  : "text-[color:var(--success)]"
+              }`}
+            >
+              {cdsData.score}
             </div>
             <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
               Dependency Score
             </div>
             <div className="text-[10px] text-[color:var(--success)] font-bold mt-2 flex items-center">
-              <TrendingDown size={12} className="mr-0.5" /> ↓ 8 pts this week
+              <TrendingDown size={12} className="mr-0.5" /> {cdsData.trend}
             </div>
           </div>
 

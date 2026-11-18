@@ -32,4 +32,14 @@ export const chatService = {
     const { data } = await api.post(`/session/${sessionId}/end`);
     return data;
   },
+
+  async getStudentCdsSummary(config = {}) {
+    const { data } = await api.get("/session/student/cds-summary", config);
+    return data;
+  },
+
+  async getSessionCds(sessionId, config = {}) {
+    const { data } = await api.get(`/session/${sessionId}/cds`, config);
+    return data;
+  },
 };

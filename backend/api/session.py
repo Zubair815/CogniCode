@@ -29,6 +29,8 @@ from sqlalchemy.orm import Session as DBSession
 from auth.dependencies import require_student
 from db.models import Interaction, Session, User
 from db.session import get_db
+from core.cds_engine import compute_session_score, get_student_cds_aggregate
+from schemas.cds import CDSScoreResponse, SessionCDSDetailResponse
 from schemas.session import (
     SessionListResponse,
     SessionResponse,
@@ -201,3 +203,53 @@ def end_session(
         db.refresh(session)
 
     return SessionResponse.model_validate(session)
+
+
+# =============================================================================
+# GET /session/student/cds-summary
+# =============================================================================
+@router.get(
+    "/student/cds-summary",
+    response_model=CDSScoreResponse,
+    summary="Get aggregated Cognitive Dependency Score for current student",
+)
+def get_cds_summary(
+    current_user: User = Depends(require_student),
+    db: DBSession = Depends(get_db),
+) -> CDSScoreResponse:
+    return get_student_cds_aggregate(current_user.id, db)
+
+
+# =============================================================================
+# GET /session/{session_id}/cds
+# =============================================================================
+@router.get(
+    "/{session_id}/cds",
+    response_model=SessionCDSDetailResponse,
+    summary="Get detailed CDS breakdown for a specific session",
+)
+def get_session_cds(
+    session_id: UUID,
+    current_user: User = Depends(require_student),
+    db: DBSession = Depends(get_db),
+) -> SessionCDSDetailResponse:
+    session = db.get(Session, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+    if session.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this session.",
+        )
+
+    score, band, signals = compute_session_score(session, db)
+    return SessionCDSDetailResponse(
+        session_id=str(session.id),
+        topic=session.topic,
+        score=score,
+        band=band,
+        signals=signals,
+    )
