@@ -21,7 +21,7 @@ import random
 import string
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session as DBSession
 
 from auth.dependencies import get_current_user, require_role
@@ -29,6 +29,7 @@ from db.models import DependencyHistory, InstructorCourse, Reflection, Session, 
 from db.session import get_db
 from agents.reflection import ReflectionAgent
 from core.cds_engine import calculate_session_signals, get_student_cds_aggregate
+from core.report_generator import generate_cohort_pdf_report
 from schemas.instructor import (
     CohortOverviewResponse,
     CourseCreateRequest,
@@ -249,6 +250,23 @@ def get_cohort_analytics(
         low_risk_count=dist["low"],
         distribution=dist,
         high_risk_students=high_risk,
+    )
+
+
+@router.get(
+    "/cohort-analytics/export-pdf",
+    summary="Export PDF Audit Report for Cohort CDS",
+)
+def export_cohort_pdf(
+    current_user: User = Depends(require_role("instructor")),
+    db: DBSession = Depends(get_db),
+):
+    cohort = get_cohort_analytics(current_user=current_user, db=db)
+    pdf_bytes = generate_cohort_pdf_report(cohort, course_name="Data Structures & Algorithms")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="cognicode_cohort_report.pdf"'},
     )
 
 

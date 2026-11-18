@@ -29,6 +29,13 @@ export const instructorService = {
     return data;
   },
 
+  async exportCohortPdf() {
+    const response = await api.get("/instructor/cohort-analytics/export-pdf", {
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
   // Student Drilldown
   async getStudentDetail(studentId, config = {}) {
     const { data } = await api.get(`/instructor/students/${studentId}`, config);

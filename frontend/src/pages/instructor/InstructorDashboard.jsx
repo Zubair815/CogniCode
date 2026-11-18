@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, AlertCircle, ArrowUpRight, TrendingUp, Sparkles, Map, ChevronRight, Loader2 } from "lucide-react";
+import { Users, AlertCircle, ArrowUpRight, TrendingUp, Sparkles, Map, ChevronRight, Loader2, Download } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Badge from "../../components/ui/Badge.jsx";
@@ -9,6 +9,7 @@ import { instructorService } from "../../services/instructorService.js";
 
 export default function InstructorDashboard() {
   const navigate = useNavigate();
+  const [downloading, setDownloading] = useState(false);
   const [stats, setStats] = useState({
     avgCds: 48,
     highRiskCount: 8,
@@ -105,6 +106,25 @@ export default function InstructorDashboard() {
     };
   }, []);
 
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const blob = await instructorService.exportCohortPdf();
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "CogniCode_Cohort_Audit.pdf";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      alert("Failed to export PDF report. Please verify connection.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <AppLayout activeCds={0}>
       <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
@@ -120,6 +140,14 @@ export default function InstructorDashboard() {
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+            >
+              <Download size={16} className="mr-1.5" />
+              {downloading ? "Exporting..." : "Export Audit PDF"}
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => navigate(ROUTES.INSTRUCTOR_HEATMAP)}
             >
               <Map size={16} className="mr-1.5" />

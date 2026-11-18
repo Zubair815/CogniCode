@@ -24,11 +24,41 @@ RULES:
 4. Keep responses short (2-3 paragraphs max)."""
 
 
+_JAILBREAK_PATTERNS = [
+    r"ignore\s+(all\s+|previous\s+|your\s+)?(instructions|rules|prompts|guidelines)",
+    r"system\s+(prompt|override|reset)",
+    r"developer\s+mode",
+    r"dan\s+mode",
+    r"unrestricted\s+(ai|model|assistant|compiler|interpreter)",
+    r"pretend\s+you\s+(are|can)",
+    r"disregard\s+(all\s+)?(rules|instructions)",
+    r"bypass\s+(safety|guardrails|socratic)",
+]
+
+
 class SocraticTutor:
     def __init__(self, llm_client=None):
         self._llm = llm_client
 
+    def detect_adversarial_jailbreak(self, message: str) -> bool:
+        """Detect prompt injection, roleplay bypass, or instruction overrides."""
+        msg_lower = message.lower()
+        for pattern in _JAILBREAK_PATTERNS:
+            if re.search(pattern, msg_lower):
+                return True
+        return False
+
     async def generate_response(self, state: AgentState) -> str:
+        student_message = state.get("message", "")
+
+        # 1. 🛡️ Adversarial Jailbreak Defense
+        if self.detect_adversarial_jailbreak(student_message):
+            return (
+                "I see what you're trying to do! As your CogniCode tutor, my role is to help you "
+                "build mental models and independent problem-solving skills rather than executing system bypasses. "
+                "Let's refocus on the problem: what invariant or logic step are you currently working through?"
+            )
+
         client = self._llm or get_llm_client()
 
         attempt = state.get("attempt_detected", False)
