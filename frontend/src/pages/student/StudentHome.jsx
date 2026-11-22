@@ -27,31 +27,28 @@ export default function StudentHome() {
     };
   }, []);
 
-  const countMatching = (keywords) => {
-    if (!sessions.length) return 0;
-    const matched = sessions.filter((s) =>
+  const countMatching = (keywords) =>
+    sessions.filter((s) =>
       keywords.some((kw) => (s.topic || "").toLowerCase().includes(kw))
     ).length;
-    return Math.min(100, matched * 25);
-  };
 
   const tracks = [
     {
       title: "Data Structures",
       level: "Intermediate",
-      progress: countMatching(["tree", "heap", "graph", "list", "stack", "queue"]),
+      sessionCount: countMatching(["tree", "heap", "graph", "list", "stack", "queue"]),
       topics: ["Trees", "Heaps", "Graphs"],
     },
     {
       title: "Algorithms & Complexity",
       level: "Advanced",
-      progress: countMatching(["dynamic", "greedy", "backtrack", "recursion", "sort", "search"]),
+      sessionCount: countMatching(["dynamic", "greedy", "backtrack", "recursion", "sort", "search"]),
       topics: ["Dynamic Programming", "Greedy", "Backtracking"],
     },
     {
       title: "Systems & Memory",
       level: "Introductory",
-      progress: countMatching(["pointer", "memory", "concurrency", "system"]),
+      sessionCount: countMatching(["pointer", "memory", "concurrency", "system"]),
       topics: ["Pointers", "Memory Allocation", "Concurrency"],
     },
   ];
@@ -61,7 +58,7 @@ export default function StudentHome() {
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <h1 className="text-2xl font-semibold tracking-tight text-fg">
-            Practice tracks
+            Study topics
           </h1>
           <Button variant="primary" onClick={() => setModalOpen(true)}>
             New session
@@ -86,14 +83,8 @@ export default function StudentHome() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-2">
-                    <div
-                      className="h-full rounded-full bg-accent"
-                      style={{ width: `${track.progress}%` }}
-                    />
-                  </div>
-                  <span className="w-9 text-right font-mono text-xs text-fg-secondary">
-                    {track.progress}%
+                  <span className="font-mono text-xs text-fg-secondary">
+                    {track.sessionCount} {track.sessionCount === 1 ? "session" : "sessions"}
                   </span>
                   <Button variant="secondary" size="sm" onClick={() => setModalOpen(true)}>
                     Practice

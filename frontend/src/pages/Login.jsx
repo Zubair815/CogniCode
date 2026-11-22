@@ -1,11 +1,6 @@
 /**
  * Login page.
  * Route: /login
- *
- * Includes:
- *   - Student / Instructor role selector
- *   - Standard email + password authentication
- *   - One-click demo workspace sign-in for both Student and Instructor
  */
 
 import { useState } from "react";
@@ -26,14 +21,13 @@ const ROLES = [
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, loginAsDemo } = useAuth();
+  const { login } = useAuth();
 
   const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [demoRoleLoading, setDemoRoleLoading] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,9 +45,7 @@ export default function Login() {
         setError(
           `This email is registered as a ${user.role} account. Switch the tab above to "${
             user.role === "instructor" ? "Instructor" : "Student"
-          }", or click "${
-            role === "instructor" ? "Instructor demo" : "Student demo"
-          }" below to open the ${role} workspace.`
+          }".`
         );
         return;
       }
@@ -72,27 +64,8 @@ export default function Login() {
     }
   };
 
-  const handleDemoLogin = async (targetRole) => {
-    setError("");
-    setDemoRoleLoading(targetRole);
-    try {
-      const user = await loginAsDemo(targetRole);
-      navigate(
-        user.role === "instructor"
-          ? ROUTES.INSTRUCTOR_DASHBOARD
-          : ROUTES.STUDENT_DASHBOARD,
-        { replace: true }
-      );
-    } catch (err) {
-      setError(err.message || "Unable to open demo workspace.");
-    } finally {
-      setDemoRoleLoading("");
-    }
-  };
-
   return (
     <AuthLayout title="Sign in">
-      {/* Student / Instructor role selector */}
       <div className="mb-5">
         <SegmentedControl
           label="Sign in role"
@@ -152,35 +125,6 @@ export default function Login() {
             : "Continue as student"}
         </Button>
       </form>
-
-      {/* Quick demo access for Student and Instructor */}
-      <div className="mt-5 border-t border-line-subtle pt-4">
-        <div className="mb-2 text-center text-xs text-fg-muted">
-          Demo accounts
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            loading={demoRoleLoading === "student"}
-            disabled={Boolean(demoRoleLoading) || loading}
-            onClick={() => handleDemoLogin("student")}
-          >
-            Student demo
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            loading={demoRoleLoading === "instructor"}
-            disabled={Boolean(demoRoleLoading) || loading}
-            onClick={() => handleDemoLogin("instructor")}
-          >
-            Instructor demo
-          </Button>
-        </div>
-      </div>
 
       <p className="mt-5 text-center text-sm text-fg-secondary">
         Don’t have an account?{" "}

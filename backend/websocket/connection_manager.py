@@ -25,11 +25,26 @@ from fastapi import WebSocket
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections grouped by session ID."""
+    """
+    Manages active WebSocket connections and per-user turn concurrency locks.
+
+    Supports single-process async concurrency safely; for horizontal scaling across
+    multiple worker instances, configure `REDIS_URL` and swap in a Redis pub/sub
+    adapter for `broadcast()`.
+    """
 
     def __init__(self):
         self._connections: Dict[UUID, Set[WebSocket]] = defaultdict(set)
         self._lock = asyncio.Lock()
+        self._user_turn_locks: Dict[str, asyncio.Lock] = {}
+
+    def get_turn_lock(self, key: str) -> asyncio.Lock:
+        """Return a per-user/session lock preventing parallel LLM flood requests."""
+        lock = self._user_turn_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._user_turn_locks[key] = lock
+        return lock
 
     async def connect(self, session_id: UUID, websocket: WebSocket) -> None:
         """Accept the socket and register it for the session."""

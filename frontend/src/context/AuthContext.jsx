@@ -2,34 +2,16 @@
 /**
  * AuthContext
  * -----------
- * Manages authenticated user session, JWT persistence, and one-click
- * Student / Instructor demo workspace switching.
+ * Manages authenticated user session with in-memory short-lived access JWTs
+ * restored from an HttpOnly rotating refresh cookie on page load.
+ * Contains zero embedded credentials or offline mock authentication.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authService } from "../services/authService.js";
-import { onUnauthorized, setToken, getToken, clearToken } from "../services/api.js";
+import { onUnauthorized, setToken, clearToken } from "../services/api.js";
 
 const AuthContext = createContext(null);
-
-const DEMO_ACCOUNTS = {
-  student: {
-    name: "Abdullah (Student)",
-    email: "demo.student@cognicode.edu",
-    password: "DemoPassword123",
-    role: "student",
-    preferred_language: "Python",
-    institution: "PUCIT",
-  },
-  instructor: {
-    name: "Sanam Ahmad (Instructor)",
-    email: "demo.instructor@cognicode.edu",
-    password: "DemoPassword123",
-    role: "instructor",
-    preferred_language: "Python",
-    institution: "PUCIT",
-  },
-};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -43,20 +25,25 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
     async function restoreSession() {
-      const token = getToken();
-      if (token) {
-        try {
-          const profile = await authService.me();
-          setUser(profile);
-        } catch {
-          clearToken();
-          setUser(null);
+      try {
+        const data = await authService.refresh();
+        if (active && data?.user && data?.access_token) {
+          setToken(data.access_token);
+          setUser(data.user);
         }
+      } catch {
+        clearToken();
+        if (active) setUser(null);
+      } finally {
+        if (active) setBootstrapped(true);
       }
-      setBootstrapped(true);
     }
     restoreSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = useCallback(async ({ identifier, password }) => {
@@ -73,58 +60,19 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
-  /**
-   * Sign in with a real backend demo account for "student" or "instructor".
-   * Auto-registers the demo account on first use so all backend endpoints
-   * and WebSockets have a valid signed JWT.
-   */
-  const loginAsDemo = useCallback(async (targetRole = "student") => {
-    const role = targetRole === "instructor" ? "instructor" : "student";
-    const preset = DEMO_ACCOUNTS[role];
-
-    try {
-      const data = await authService.login({
-        identifier: preset.email,
-        password: preset.password,
-      });
-      setToken(data.access_token);
-      setUser(data.user);
-      return data.user;
-    } catch {
-      try {
-        const data = await authService.register(preset);
-        setToken(data.access_token);
-        setUser(data.user);
-        return data.user;
-      } catch {
-        // Offline fallback so UI preview still works if backend is stopped
-        const fallbackUser = {
-          id: `demo-${role}`,
-          name: preset.name,
-          email: preset.email,
-          role: preset.role,
-          preferred_language: preset.preferred_language,
-          institution: preset.institution,
-        };
-        setUser(fallbackUser);
-        return fallbackUser;
-      }
-    }
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await authService.logout();
     } catch {
-      // ignore — we still clear local state
+      // ignore — always clear local in-memory state
     }
     clearToken();
     setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ user, login, register, loginAsDemo, logout, bootstrapped }),
-    [user, login, register, loginAsDemo, logout, bootstrapped]
+    () => ({ user, login, register, logout, bootstrapped }),
+    [user, login, register, logout, bootstrapped]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

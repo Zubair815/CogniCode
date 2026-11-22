@@ -24,11 +24,7 @@ from uuid import UUID
 
 from jose import JWTError, jwt
 
-from config import get_settings
-
-
-# --- Load settings once ---
-settings = get_settings()
+from config import get_settings, is_valid_jwt_secret
 
 
 # --- Custom exception ---
@@ -41,54 +37,45 @@ class TokenError(Exception):
     pass
 
 
-# --- Token payload typing ---
-# We use a TypedDict-like structure via plain dict for simplicity,
-# but document the expected shape here for reference.
-#
-# Payload shape:
-# {
-#   "sub": "<user-uuid>",
-#   "email": "<user-email>",
-#   "role": "student" | "instructor",
-#   "iat": <issued-at unix timestamp>,
-#   "exp": <expiry unix timestamp>,
-# }
+def _get_validated_jwt_config():
+    settings = get_settings()
+    if not is_valid_jwt_secret(settings.jwt_secret):
+        raise RuntimeError(
+            "JWT_SECRET is missing, a placeholder, or shorter than 32 characters. "
+            "Configure a strong random JWT_SECRET before signing or verifying tokens."
+        )
+    return settings
 
 
 def create_access_token(
     user_id: str | UUID,
     role: str,
     email: str,
+    expires_in_minutes: int | None = None,
     expires_in_hours: int | None = None,
 ) -> str:
     """
-    Create a signed JWT access token for a user.
-
-    Args:
-        user_id: The user's UUID (str or UUID instance).
-        role: Either "student" or "instructor".
-        email: The user's email (included for convenience).
-        expires_in_hours: Override the default expiry. Useful for
-                          short-lived tokens in tests.
-
-    Returns:
-        A signed JWT string.
-
-    Raises:
-        ValueError: If role is not one of the allowed values.
+    Create a short-lived signed JWT access token for a user.
     """
     if role not in ("student", "instructor"):
         raise ValueError(f"Invalid role: {role}")
 
+    settings = _get_validated_jwt_config()
     now = datetime.now(timezone.utc)
-    ttl_hours = expires_in_hours if expires_in_hours is not None else settings.jwt_expiry_hours
+    if expires_in_minutes is not None:
+        delta = timedelta(minutes=expires_in_minutes)
+    elif expires_in_hours is not None:
+        delta = timedelta(hours=expires_in_hours)
+    else:
+        delta = timedelta(minutes=settings.access_token_expire_minutes)
 
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "email": email,
         "role": role,
+        "type": "access",
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(hours=ttl_hours)).timestamp()),
+        "exp": int((now + delta).timestamp()),
     }
 
     return jwt.encode(
@@ -101,20 +88,11 @@ def create_access_token(
 def decode_access_token(token: str) -> dict[str, Any]:
     """
     Decode and verify a JWT access token.
-
-    Args:
-        token: The JWT string from the Authorization header.
-
-    Returns:
-        The decoded payload as a dict.
-
-    Raises:
-        TokenError: If the token is missing, malformed, expired, or
-                    has an invalid signature.
     """
     if not token:
         raise TokenError("Missing token")
 
+    settings = _get_validated_jwt_config()
     try:
         payload = jwt.decode(
             token,
@@ -122,12 +100,8 @@ def decode_access_token(token: str) -> dict[str, Any]:
             algorithms=[settings.jwt_algorithm],
         )
     except JWTError as exc:
-        # jose raises various subclasses (ExpiredSignatureError,
-        # JWTClaimsError, etc.) — collapse them into TokenError so
-        # callers handle a single exception type.
         raise TokenError(f"Invalid token: {exc}") from exc
 
-    # Sanity check: required claims present.
     for required in ("sub", "role", "exp"):
         if required not in payload:
             raise TokenError(f"Token missing required claim: {required}")

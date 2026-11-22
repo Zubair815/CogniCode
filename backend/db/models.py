@@ -107,6 +107,27 @@ class User(Base):
     taught_courses = relationship(
         "InstructorCourse", back_populates="instructor", cascade="all, delete-orphan"
     )
+    course_enrollments = relationship(
+        "CourseEnrollment", back_populates="student", cascade="all, delete-orphan"
+    )
+    refresh_tokens = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    ws_tickets = relationship(
+        "WsTicket", back_populates="user", cascade="all, delete-orphan"
+    )
+    received_reminders = relationship(
+        "PracticeReminder",
+        foreign_keys="PracticeReminder.student_id",
+        back_populates="student",
+        cascade="all, delete-orphan",
+    )
+    sent_reminders = relationship(
+        "PracticeReminder",
+        foreign_keys="PracticeReminder.instructor_id",
+        back_populates="instructor",
+        cascade="all, delete-orphan",
+    )
 
     # --- Integrity Constraints (ACID "C") ---
     __table_args__ = (
@@ -126,7 +147,8 @@ class User(Base):
 # =============================================================================
 class InstructorCourse(Base):
     """
-    Maps an instructor to a course and its enrolled students.
+    Maps an instructor to a course. Student enrollments are stored
+    in the normalized `course_enrollments` table with FK integrity.
     """
 
     __tablename__ = "instructor_courses"
@@ -143,13 +165,14 @@ class InstructorCourse(Base):
     course_code = Column(String(20), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
 
-    enrolled_students = Column(JSON, default=list, nullable=False)
-
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     instructor = relationship("User", back_populates="taught_courses")
+    enrollments = relationship(
+        "CourseEnrollment", back_populates="course", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -161,6 +184,131 @@ class InstructorCourse(Base):
 
     def __repr__(self) -> str:
         return f"<InstructorCourse {self.course_code} — {self.course_name}>"
+
+
+class CourseEnrollment(Base):
+    """Normalized join table associating students with instructor courses."""
+
+    __tablename__ = "course_enrollments"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    course_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("instructor_courses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    student_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    enrolled_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    course = relationship("InstructorCourse", back_populates="enrollments")
+    student = relationship("User", back_populates="course_enrollments")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "course_id", "student_id",
+            name="uq_course_student_enrollment",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<CourseEnrollment course={self.course_id} student={self.student_id}>"
+
+
+class RefreshToken(Base):
+    """Opaque refresh tokens (stored as SHA-256 hashes) for HttpOnly cookie rotation."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user = relationship("User", back_populates="refresh_tokens")
+
+
+class WsTicket(Base):
+    """Short-lived, single-use opaque ticket for authenticated WebSocket handshakes."""
+
+    __tablename__ = "ws_tickets"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user = relationship("User", back_populates="ws_tickets")
+
+
+class PracticeReminder(Base):
+    """Instructor-sent practice reminder persisted and delivered to student dashboard."""
+
+    __tablename__ = "practice_reminders"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    instructor_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    student_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    course_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey("instructor_courses.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    topic = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    instructor = relationship(
+        "User", foreign_keys=[instructor_id], back_populates="sent_reminders"
+    )
+    student = relationship(
+        "User", foreign_keys=[student_id], back_populates="received_reminders"
+    )
 
 
 # =============================================================================

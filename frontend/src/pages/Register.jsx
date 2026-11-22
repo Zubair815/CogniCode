@@ -28,6 +28,7 @@ export default function Register() {
     name: "",
     email: "",
     password: "",
+    invite_code: "",
     preferred_language: "Python",
     institution: "",
   });
@@ -46,11 +47,17 @@ export default function Register() {
       return;
     }
 
+    if (role === "instructor" && !form.invite_code.trim()) {
+      setError("Instructor accounts require an institutional invite code.");
+      return;
+    }
+
     const payload = {
       name: form.name.trim(),
       email: form.email.trim(),
       password: form.password,
       role,
+      invite_code: role === "instructor" ? form.invite_code.trim() : null,
       preferred_language: form.preferred_language,
       institution: form.institution.trim() || null,
     };
@@ -113,7 +120,17 @@ export default function Register() {
           autoComplete="new-password"
         />
 
-        {role === "student" && (
+        {role === "instructor" ? (
+          <Input
+            id="invite_code"
+            label="Instructor invite code"
+            placeholder="Provided by your department administrator"
+            value={form.invite_code}
+            onChange={update("invite_code")}
+            hint="Public instructor sign-up requires institutional authorization."
+            required
+          />
+        ) : (
           <Input
             id="preferred_language"
             label="Preferred language"

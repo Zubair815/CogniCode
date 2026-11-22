@@ -2,25 +2,18 @@
 Module: backend.websocket.chat_handler
 Purpose: WebSocket endpoint for real-time tutoring chat.
 
-         Endpoint:
-           WS /ws/chat/{session_id}?token=<JWT>
-
-         The token is passed as a query parameter because the browser
-         WebSocket API does not support custom headers.
-
-         Lifecycle:
-           1. Validate JWT and session ownership.
-           2. Send {"type": "ready"} with session context and history.
-           3. Loop: receive message → classify → generate → persist → reply.
-           4. On disconnect: cleanup.
-
-         Errors are sent as {"type": "error", "code", "message"} so
-         the client can render them inline. Fatal errors close the
-         socket; recoverable ones keep it open.
-
-Created: 10/10/2026
+Security & Scalability Design:
+  - Authenticates exclusively via short-lived, single-use opaque WebSocket
+    tickets (`?ticket=...` minted by `POST /auth/ws-ticket`), keeping JWTs out of URLs.
+  - Offloads synchronous SQLAlchemy queries via `asyncio.to_thread` using
+    short-lived scoped sessions (never holds a DB connection idle during WS waits).
+  - Enforces message size limits, sliding-window rate limits, and per-user
+    active-turn concurrency locks before invoking the LLM workflow.
+  - Persists quiz check evaluations to `QuizResult` and recomputes CDS cleanly.
 """
 
+import asyncio
+import hashlib
 import logging
 from datetime import datetime, timezone
 from uuid import UUID
@@ -28,11 +21,12 @@ from uuid import UUID
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session as DBSession
 
-from agents import tutoring_graph, new_state
+from agents import new_state, tutoring_graph
 from agents.assessment import AssessmentAgent
-from auth.jwt_handler import TokenError, decode_access_token
+from config import get_settings
 from core.cds_engine import compute_session_score
-from db.models import Interaction, Session, User
+from core.rate_limit import rate_limiter
+from db.models import Interaction, QuizResult, Session, User, WsTicket
 from db.session import SessionLocal
 from llm import LLMError
 from websocket.connection_manager import manager
@@ -43,55 +37,13 @@ logger = logging.getLogger("cognicode.websocket")
 router = APIRouter()
 _assessment_agent = AssessmentAgent()
 
-# =============================================================================
-# HELPERS
-# =============================================================================
-def _authenticate(token: str, db: DBSession) -> User:
-    """
-    Validate the JWT and return the User. Raises on any failure.
-    """
-    payload = decode_access_token(token)  # raises TokenError
-    user_id = UUID(payload["sub"])
-    user = db.get(User, user_id)
-    if user is None:
-        raise TokenError("User no longer exists.")
-    return user
 
-
-def _load_session(session_id: UUID, user: User, db: DBSession) -> Session:
-    """Load the session and verify ownership."""
-    session = db.get(Session, session_id)
-    if session is None:
-        raise TokenError("Session not found.")
-    if session.student_id != user.id:
-        raise TokenError("You do not have access to this session.")
-    return session
-
-
-def _recent_interactions(db: DBSession, session_id: UUID, limit: int = 6) -> list[Interaction]:
-    """Return the last N interactions in chronological order (oldest first)."""
-    rows = (
-        db.query(Interaction)
-        .filter(Interaction.session_id == session_id)
-        .order_by(Interaction.timestamp.desc())
-        .limit(limit)
-        .all()
-    )
-    rows.reverse()
-    return rows
-
-
-def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
-    """
-    Return the last N interactions formatted for the agent context.
-    We fetch the most recent rows, then reverse to chronological order.
-    """
-    rows = _recent_interactions(db, session_id, limit=limit)
-    history = []
-    for row in rows:
-        history.append({"role": "student", "content": row.message})
-        history.append({"role": "assistant", "content": row.response})
-    return history
+class WsAuthError(Exception):
+    """Raised when a WebSocket ticket or session authorization fails."""
+    def __init__(self, message: str, code: str = "auth_failed", ws_close_code: int = 4401):
+        super().__init__(message)
+        self.code = code
+        self.ws_close_code = ws_close_code
 
 
 def _serialize_interaction(interaction: Interaction) -> dict:
@@ -107,68 +59,211 @@ def _serialize_interaction(interaction: Interaction) -> dict:
     }
 
 
-# =============================================================================
-# WEBSOCKET ENDPOINT
-# =============================================================================
-@router.websocket("/ws/chat/{session_id}")
-async def chat_websocket(
-    websocket: WebSocket,
-    session_id: UUID,
-    token: str = Query(..., description="JWT access token"),
-):
+def _consume_ticket_and_load_session(ticket: str | None, session_id: UUID) -> dict:
     """
-    Real-time tutoring chat over WebSocket.
-
-    Query params:
-        token — JWT access token (required)
+    Validate & atomically consume single-use WS ticket, verify user + session
+    ownership, and return initial session context and serialized history.
     """
-    db: DBSession = SessionLocal()
+    if not ticket or not ticket.strip():
+        raise WsAuthError("Missing WebSocket authentication ticket.", "auth_failed", 4401)
 
-    try:
-        # --- Authenticate ---
-        try:
-            user = _authenticate(token, db)
-        except (TokenError, ValueError) as exc:
-            await websocket.accept()
-            await websocket.send_json({
-                "type": "error",
-                "code": "auth_failed",
-                "message": str(exc) or "Authentication failed.",
-            })
-            await websocket.close(code=4401)
-            return
+    ticket_hash = hashlib.sha256(ticket.strip().encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc)
 
-        # --- Verify session ownership ---
-        try:
-            session = _load_session(session_id, user, db)
-        except TokenError as exc:
-            await websocket.accept()
-            await websocket.send_json({
-                "type": "error",
-                "code": "session_forbidden",
-                "message": str(exc),
-            })
-            await websocket.close(code=4403)
-            return
+    with SessionLocal() as db:
+        ticket_row = db.query(WsTicket).filter(WsTicket.token_hash == ticket_hash).first()
+        if ticket_row is None or ticket_row.used_at is not None:
+            raise WsAuthError("Invalid or already-used WebSocket ticket.", "auth_failed", 4401)
 
-        # --- Register connection ---
-        await manager.connect(session_id, websocket)
+        expires_at = ticket_row.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
+            raise WsAuthError("WebSocket ticket expired.", "auth_failed", 4401)
 
-        # --- Send ready frame with history ---
+        if ticket_row.session_id is not None and ticket_row.session_id != session_id:
+            raise WsAuthError("WebSocket ticket is scoped to another session.", "session_forbidden", 4403)
+
+        user = db.get(User, ticket_row.user_id)
+        if user is None:
+            raise WsAuthError("User no longer exists.", "auth_failed", 4401)
+
+        session = db.get(Session, session_id)
+        if session is None:
+            raise WsAuthError("Session not found.", "session_forbidden", 4403)
+        if session.student_id != user.id:
+            raise WsAuthError("You do not have access to this session.", "session_forbidden", 4403)
+
+        # Mark ticket consumed
+        ticket_row.used_at = now
+        db.commit()
+
         history_rows = (
             db.query(Interaction)
             .filter(Interaction.session_id == session_id)
             .order_by(Interaction.timestamp.asc())
             .all()
         )
-        await manager.send_to(session_id, websocket, {
-            "type": "ready",
-            "session_id": str(session.id),
+        return {
+            "user_id": user.id,
+            "preferred_language": user.preferred_language or "Python",
+            "session_id": session.id,
             "topic": session.topic,
             "history": [_serialize_interaction(i) for i in history_rows],
+        }
+
+
+def _close_session_in_db(session_id: UUID) -> None:
+    """Mark session ended and recompute CDS score in a short-lived transaction."""
+    with SessionLocal() as db:
+        session = db.get(Session, session_id)
+        if session and session.ended_at is None:
+            session.ended_at = datetime.now(timezone.utc)
+            try:
+                compute_session_score(session, db)
+            except Exception:
+                logger.warning("Failed to compute CDS on session_end for %s", session_id)
+            db.commit()
+
+
+def _load_turn_context(session_id: UUID, user_id: UUID) -> dict:
+    """Load recent session interactions and hint state cleanly for one chat turn."""
+    with SessionLocal() as db:
+        session = db.get(Session, session_id)
+        user = db.get(User, user_id)
+        rows = (
+            db.query(Interaction)
+            .filter(Interaction.session_id == session_id)
+            .order_by(Interaction.timestamp.desc())
+            .limit(6)
+            .all()
+        )
+        rows.reverse()
+
+        history = []
+        for row in rows:
+            history.append({"role": "student", "content": row.message})
+            history.append({"role": "assistant", "content": row.response})
+
+        last_ts = rows[-1].timestamp if rows else None
+        last_resp = (rows[-1].response or "") if rows else ""
+        check_passed = any("Concept Check Passed" in (r.response or "") for r in rows)
+
+        return {
+            "topic": session.topic if session else "Programming",
+            "preferred_language": (user.preferred_language if user else None) or "Python",
+            "current_hint_level": (getattr(session, "max_hint_level", 0) or 0) if session else 0,
+            "history": history,
+            "last_timestamp": last_ts,
+            "last_response": last_resp,
+            "check_passed": check_passed,
+        }
+
+
+def _persist_turn_result(
+    session_id: UUID,
+    user_id: UUID,
+    content: str,
+    state: dict,
+    time_since_last: int | None,
+) -> Interaction:
+    """Persist interaction, quiz result (if evaluated), session counters, and CDS atomically."""
+    response_text = state.get("response") or "(no response)"
+    hint_level_given = state.get("current_hint_level") or None
+
+    with SessionLocal() as db:
+        session = db.get(Session, session_id)
+        if session is None:
+            raise ValueError("Session no longer exists.")
+
+        interaction = Interaction(
+            session_id=session.id,
+            student_id=user_id,
+            message=content,
+            response=response_text,
+            intent=_map_intent(state.get("intent")),
+            attempt_detected=state.get("attempt_detected", False),
+            hint_level_given=hint_level_given,
+            time_since_last=time_since_last,
+        )
+        db.add(interaction)
+
+        if state.get("intent") == "code_request":
+            session.solution_requests = (session.solution_requests or 0) + 1
+        if state.get("attempt_detected"):
+            session.retry_count = (session.retry_count or 0) + 1
+        if state.get("intent") == "debug":
+            session.debugging_attempts = (session.debugging_attempts or 0) + 1
+        if hint_level_given and hint_level_given > (getattr(session, "max_hint_level", 0) or 0):
+            session.max_hint_level = hint_level_given
+
+        # Persist in-chat conceptual quiz check outcome to QuizResult
+        if (
+            "Concept Check Passed" in response_text
+            or "Concept Check Review Needed" in response_text
+        ):
+            passed = "Concept Check Passed" in response_text
+            db.add(
+                QuizResult(
+                    student_id=user_id,
+                    session_id=session.id,
+                    topic=session.topic,
+                    score=1 if passed else 0,
+                    total_questions=1,
+                    passed=passed,
+                )
+            )
+
+        db.flush()
+        compute_session_score(session, db)
+        db.commit()
+        db.refresh(interaction)
+        return interaction
+
+
+@router.websocket("/ws/chat/{session_id}")
+async def chat_websocket(
+    websocket: WebSocket,
+    session_id: UUID,
+    ticket: str | None = Query(default=None, description="Single-use WebSocket auth ticket"),
+):
+    """Real-time tutoring chat over WebSocket using single-use ticket authentication."""
+    try:
+        ctx = await asyncio.to_thread(_consume_ticket_and_load_session, ticket, session_id)
+    except WsAuthError as exc:
+        await websocket.accept()
+        await websocket.send_json({
+            "type": "error",
+            "code": exc.code,
+            "message": str(exc),
+        })
+        await websocket.close(code=exc.ws_close_code)
+        return
+    except Exception:
+        logger.exception("Unexpected error during WS handshake for session %s", session_id)
+        await websocket.accept()
+        await websocket.send_json({
+            "type": "error",
+            "code": "auth_failed",
+            "message": "Authentication failed.",
+        })
+        await websocket.close(code=4401)
+        return
+
+    user_id: UUID = ctx["user_id"]
+    turn_lock = manager.get_turn_lock(f"{user_id}:{session_id}")
+    settings = get_settings()
+
+    try:
+        await manager.connect(session_id, websocket)
+
+        await manager.send_to(session_id, websocket, {
+            "type": "ready",
+            "session_id": str(session_id),
+            "topic": ctx["topic"],
+            "history": ctx["history"],
         })
 
-        # --- Message loop ---
         while True:
             try:
                 raw = await websocket.receive_json()
@@ -184,27 +279,18 @@ async def chat_websocket(
 
             msg_type = (raw or {}).get("type")
 
-            # --- Ping / pong keep-alive ---
             if msg_type == "ping":
                 await manager.send_to(session_id, websocket, {"type": "pong"})
                 continue
 
-            # --- Session end ---
             if msg_type == "session_end":
-                if session.ended_at is None:
-                    session.ended_at = datetime.now(timezone.utc)
-                    db.commit()
-                    try:
-                        compute_session_score(session, db)
-                    except Exception:
-                        logger.warning("Failed to compute CDS on session_end for %s", session.id)
+                await asyncio.to_thread(_close_session_in_db, session_id)
                 await manager.send_to(session_id, websocket, {
                     "type": "session_ended",
-                    "session_id": str(session.id),
+                    "session_id": str(session_id),
                 })
                 break
 
-            # --- Chat / code_submission handled the same way for V1 ---
             if msg_type in ("chat", "code_submission"):
                 content = (raw.get("content") or "").strip()
                 if not content:
@@ -214,10 +300,39 @@ async def chat_websocket(
                         "message": "Message cannot be empty.",
                     })
                     continue
-                await _handle_chat(session_id, session, user, content, websocket, db)
+                if len(content) > settings.ws_max_message_chars:
+                    await manager.send_to(session_id, websocket, {
+                        "type": "error",
+                        "code": "message_too_long",
+                        "message": f"Message exceeds maximum length of {settings.ws_max_message_chars} characters.",
+                    })
+                    continue
+
+                allowed, retry_after = rate_limiter.check(
+                    f"ws_chat:{user_id}",
+                    settings.ws_message_rate_limit_max,
+                    settings.ws_message_rate_limit_window_seconds,
+                )
+                if not allowed:
+                    await manager.send_to(session_id, websocket, {
+                        "type": "error",
+                        "code": "rate_limited",
+                        "message": f"Rate limit exceeded. Please wait {retry_after}s before sending another message.",
+                    })
+                    continue
+
+                if turn_lock.locked():
+                    await manager.send_to(session_id, websocket, {
+                        "type": "error",
+                        "code": "concurrent_request",
+                        "message": "A response is already in progress. Please wait for it to finish.",
+                    })
+                    continue
+
+                async with turn_lock:
+                    await _handle_chat(session_id, user_id, content, websocket)
                 continue
 
-            # --- Unknown type ---
             await manager.send_to(session_id, websocket, {
                 "type": "error",
                 "code": "unknown_type",
@@ -230,57 +345,39 @@ async def chat_websocket(
         logger.exception("Unexpected WS error for session %s", session_id)
     finally:
         await manager.disconnect(session_id, websocket)
-        db.close()
 
 
 async def _handle_chat(
     session_id: UUID,
-    session: Session,
-    user: User,
+    user_id: UUID,
     content: str,
     websocket: WebSocket,
-    db: DBSession,
 ):
-    """
-    Process one chat message end-to-end using the multi-agent LangGraph workflow.
-
-    Workflow:
-        1. Notify client that assistant is thinking.
-        2. Build AgentState from history, session topic, and current hint level.
-        3. Invoke tutoring_graph (routes through ConversationManager, SocraticTutor,
-           HintGenerator, or AssessmentAgent).
-        4. Persist the interaction and update session metrics.
-        5. Stream the response and hint metadata back to client.
-    """
+    """Process one chat turn end-to-end without holding open DB sessions across LLM I/O."""
     await manager.send_to(session_id, websocket, {"type": "typing"})
 
-    recent_rows = _recent_interactions(db, session.id, limit=6)
-    history = []
-    for row in recent_rows:
-        history.append({"role": "student", "content": row.message})
-        history.append({"role": "assistant", "content": row.response})
+    turn_ctx = await asyncio.to_thread(_load_turn_context, session_id, user_id)
+    topic = turn_ctx["topic"]
 
     state = new_state(
-        student_id=str(user.id),
-        session_id=str(session.id),
-        topic=session.topic,
+        student_id=str(user_id),
+        session_id=str(session_id),
+        topic=topic,
         message=content,
-        history=history,
-        preferred_language=user.preferred_language or "Python",
-        current_hint_level=getattr(session, "max_hint_level", 0) or 0,
+        history=turn_ctx["history"],
+        preferred_language=turn_ctx["preferred_language"],
+        current_hint_level=turn_ctx["current_hint_level"],
     )
 
-    # Restore multi-turn conceptual check state from recent session interactions
-    if any("Concept Check Passed" in (r.response or "") for r in recent_rows):
+    if turn_ctx["check_passed"]:
         state["understanding_check_passed"] = True
-    elif recent_rows and (
-        "Conceptual Understanding Check" in (recent_rows[-1].response or "")
-        or "unlock Level 3" in (recent_rows[-1].response or "")
+    elif (
+        "Conceptual Understanding Check" in turn_ctx["last_response"]
+        or "unlock Level 3" in turn_ctx["last_response"]
     ):
         state["understanding_check_required"] = True
-        state["quiz_question"] = _assessment_agent.get_or_generate_question(session.topic)
+        state["quiz_question"] = _assessment_agent.get_or_generate_question(topic)
 
-    # Execute multi-agent LangGraph orchestration
     try:
         state = await tutoring_graph.ainvoke(state)
     except LLMError as exc:
@@ -291,7 +388,7 @@ async def _handle_chat(
             "message": str(exc) or "The AI is unavailable. Please try again.",
         })
         return
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in multi-agent graph")
         await manager.send_to(session_id, websocket, {
             "type": "error",
@@ -300,47 +397,20 @@ async def _handle_chat(
         })
         return
 
-    response_text = state.get("response") or "(no response)"
-    hint_level_given = state.get("current_hint_level") or None
-
     now_utc = datetime.now(timezone.utc)
     time_since_last = None
-    if recent_rows and recent_rows[-1].timestamp:
-        prev_ts = recent_rows[-1].timestamp
+    prev_ts = turn_ctx["last_timestamp"]
+    if prev_ts:
         if prev_ts.tzinfo is None:
             prev_ts = prev_ts.replace(tzinfo=timezone.utc)
         time_since_last = max(0, int((now_utc - prev_ts).total_seconds()))
 
-    # Persist interaction
-    interaction = Interaction(
-        session_id=session.id,
-        student_id=user.id,
-        message=content,
-        response=response_text,
-        intent=_map_intent(state.get("intent")),
-        attempt_detected=state.get("attempt_detected", False),
-        hint_level_given=hint_level_given,
-        time_since_last=time_since_last,
-    )
-    db.add(interaction)
-
-    # Update session aggregates
-    if state.get("intent") == "code_request":
-        session.solution_requests = (session.solution_requests or 0) + 1
-    if state.get("attempt_detected"):
-        session.retry_count = (session.retry_count or 0) + 1
-    if state.get("intent") == "debug":
-        session.debugging_attempts = (session.debugging_attempts or 0) + 1
-    if hint_level_given and hint_level_given > (getattr(session, "max_hint_level", 0) or 0):
-        session.max_hint_level = hint_level_given
-
     try:
-        db.commit()
-        db.refresh(interaction)
-        compute_session_score(session, db)
+        interaction = await asyncio.to_thread(
+            _persist_turn_result, session_id, user_id, content, state, time_since_last
+        )
     except Exception:
-        db.rollback()
-        logger.exception("Failed to persist interaction")
+        logger.exception("Failed to persist interaction for session %s", session_id)
         await manager.send_to(session_id, websocket, {
             "type": "error",
             "code": "persistence_error",
@@ -348,7 +418,7 @@ async def _handle_chat(
         })
         return
 
-    # Reply to client with hint level and understanding check metadata
+    response_text = state.get("response") or "(no response)"
     await manager.send_to(session_id, websocket, {
         "type": "response",
         "content": response_text,
@@ -363,12 +433,7 @@ async def _handle_chat(
 
 
 def _map_intent(intent: str | None) -> str | None:
-    """
-    Map agent-level intents to the DB enum values.
-
-    DB enum: concept | code_request | debug | quiz
-    Agent intents: concept_question | code_request | debug | quiz | hint_request | other
-    """
+    """Map agent-level intents to the DB enum values."""
     if intent is None:
         return None
     if intent in ("concept_question", "hint_request"):

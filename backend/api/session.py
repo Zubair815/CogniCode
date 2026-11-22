@@ -199,8 +199,8 @@ def end_session(
 
     if session.ended_at is None:
         session.ended_at = datetime.now(timezone.utc)
-        db.commit()
         compute_session_score(session, db)
+        db.commit()
         db.refresh(session)
 
     return SessionResponse.model_validate(session)
@@ -246,7 +246,7 @@ def get_session_cds(
             detail="You do not have access to this session.",
         )
 
-    score, band, signals = compute_session_score(session, db)
+    score, band, signals = compute_session_score(session, db, commit=True)
     return SessionCDSDetailResponse(
         session_id=str(session.id),
         topic=session.topic,

@@ -17,8 +17,11 @@ export default function StudentDetail() {
   const [searchParams] = useSearchParams();
   const studentId = paramId || searchParams.get("studentId");
 
+  const [sendingReminder, setSendingReminder] = useState(false);
   const [reminded, setReminded] = useState(false);
+  const [reminderError, setReminderError] = useState("");
   const [loading, setLoading] = useState(Boolean(studentId));
+  const [loadError, setLoadError] = useState("");
   const [student, setStudent] = useState(null);
   const [factors, setFactors] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -31,13 +34,14 @@ export default function StudentDetail() {
         return;
       }
       setLoading(true);
+      setLoadError("");
       try {
         const data = await instructorService.getStudentDetail(studentId);
         if (active && data) {
           setStudent({
+            id: data.student_id,
             name: data.name,
             email: data.email,
-            rollNo: data.email,
             score: Math.round(data.overall_cds || 0),
             riskBand:
               data.risk_band === "high"
@@ -54,32 +58,38 @@ export default function StudentDetail() {
               {
                 name: "Direct solution requests",
                 value: Math.round(data.signals.solution_frequency || 0),
-                desc: "Solution request frequency",
+                isRiskMetric: true,
+                desc: "Share of turns requesting complete code (lower is better)",
               },
               {
                 name: "Average hint depth",
                 value: Math.round(data.signals.hint_depth || 0),
-                desc: "Scaffolding depth reached (Level 1–5)",
+                isRiskMetric: true,
+                desc: "Scaffolding depth reached on Level 1–5 ladder (lower is better)",
               },
               {
-                name: "Interaction time gap",
+                name: "Deliberate response pacing",
                 value: Math.round(data.signals.time_gap || 0),
-                desc: "Rapid prompt frequency (<20s intervals)",
+                isRiskMetric: false,
+                desc: "Turns with >= 20s reflection interval (higher is better)",
               },
               {
-                name: "Code debugging attempts",
+                name: "Independent debugging",
                 value: Math.round(data.signals.debugging_attempts || 0),
-                desc: "Independent debugging frequency",
+                isRiskMetric: false,
+                desc: "Turns showing independent debugging effort (higher is better)",
               },
               {
-                name: "Conceptual quiz score",
+                name: "Concept check accuracy",
                 value: Math.round(data.signals.quiz_performance || 0),
-                desc: "Pre-hint conceptual understanding checks",
+                isRiskMetric: false,
+                desc: "Server-graded conceptual quiz score (higher is better)",
               },
               {
                 name: "Attempt perseverance",
                 value: Math.round(data.signals.retry_count || 0),
-                desc: "Student code submission ratio",
+                isRiskMetric: false,
+                desc: "Share of turns containing code or reasoning attempts (higher is better)",
               },
             ]);
           }
@@ -108,8 +118,11 @@ export default function StudentDetail() {
             );
           }
         }
-      } catch {
-        if (active) setStudent(null);
+      } catch (err) {
+        if (active) {
+          setStudent(null);
+          setLoadError(err?.message || "Unable to load student profile.");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -119,6 +132,25 @@ export default function StudentDetail() {
       active = false;
     };
   }, [studentId]);
+
+  const handleSendReminder = async () => {
+    if (!studentId) return;
+    setSendingReminder(true);
+    setReminderError("");
+    setReminded(false);
+    try {
+      const topTopic = sessions[0]?.topic || "Independent Problem Solving";
+      await instructorService.sendPracticeReminder(studentId, {
+        topic: topTopic,
+        message: `Please complete an independent practice session on ${topTopic} and submit your initial code attempt before requesting hints.`,
+      });
+      setReminded(true);
+    } catch (err) {
+      setReminderError(err?.message || "Failed to send practice reminder.");
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const riskTone =
     (student?.score || 0) > 70
@@ -151,8 +183,11 @@ export default function StudentDetail() {
         ) : !student ? (
           <Card padding="p-0">
             <EmptyState
-              title="No student selected"
-              description="Select an enrolled student from the cohort analytics table to inspect their dependency signals."
+              title={loadError ? "Access denied or unavailable" : "No student selected"}
+              description={
+                loadError ||
+                "Select an enrolled student from the cohort analytics table to inspect their dependency signals."
+              }
               action={
                 <Button
                   size="sm"
@@ -168,7 +203,12 @@ export default function StudentDetail() {
           <>
             {reminded && (
               <Alert tone="success" onDismiss={() => setReminded(false)}>
-                Practice recommendation sent to {student.name}.
+                Practice reminder sent and queued on {student.name}&apos;s dashboard.
+              </Alert>
+            )}
+            {reminderError && (
+              <Alert tone="danger" onDismiss={() => setReminderError("")}>
+                {reminderError}
               </Alert>
             )}
 
@@ -194,9 +234,10 @@ export default function StudentDetail() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setReminded(true)}
+                loading={sendingReminder}
+                onClick={handleSendReminder}
               >
-                Send practice reminder
+                {sendingReminder ? "Sending…" : "Send practice reminder"}
               </Button>
             </div>
 
@@ -204,12 +245,22 @@ export default function StudentDetail() {
             <Card title="Dependency signals">
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
                 {factors.map((f) => {
-                  const barColor =
-                    f.value > 70
-                      ? "bg-danger"
-                      : f.value > 40
-                      ? "bg-warning"
-                      : "bg-success";
+                  let barColor;
+                  if (f.isRiskMetric) {
+                    barColor =
+                      f.value > 70
+                        ? "bg-danger"
+                        : f.value > 40
+                        ? "bg-warning"
+                        : "bg-success";
+                  } else {
+                    barColor =
+                      f.value >= 70
+                        ? "bg-success"
+                        : f.value >= 40
+                        ? "bg-warning"
+                        : "bg-danger";
+                  }
                   return (
                     <div key={f.name} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">

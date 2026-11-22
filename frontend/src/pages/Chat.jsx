@@ -30,6 +30,7 @@ export default function Chat() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [endingSession, setEndingSession] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   const isPlaceholderId = !sessionId || sessionId === "active";
@@ -90,10 +91,17 @@ export default function Chat() {
     return undefined;
   }, [error, navigate]);
 
-  const handleEnd = useCallback(() => {
-    end();
-    setConfirmEnd(false);
-    setTimeout(() => navigate(ROUTES.STUDENT_DASHBOARD), 200);
+  const handleEnd = useCallback(async () => {
+    setEndingSession(true);
+    try {
+      await end();
+      setConfirmEnd(false);
+      navigate(ROUTES.STUDENT_DASHBOARD);
+    } catch {
+      setConfirmEnd(false);
+    } finally {
+      setEndingSession(false);
+    }
   }, [end, navigate]);
 
   const disabled = wsStatus !== "open" || !effectiveSessionId;
@@ -203,11 +211,11 @@ export default function Chat() {
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setConfirmEnd(false)}>
+            <Button variant="secondary" onClick={() => setConfirmEnd(false)} disabled={endingSession}>
               Continue session
             </Button>
-            <Button variant="danger" onClick={handleEnd}>
-              End session
+            <Button variant="danger" onClick={handleEnd} loading={endingSession}>
+              {endingSession ? "Ending…" : "End session"}
             </Button>
           </>
         }

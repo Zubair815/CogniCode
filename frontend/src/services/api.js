@@ -1,72 +1,68 @@
 /**
  * Axios API client.
- * Created: 10/10/2026
- * Updated: 10/10/2026
+ * - Short-lived access token kept strictly in memory (never localStorage).
+ * - Rotating refresh token sent automatically via HttpOnly cookie (`withCredentials: true`).
+ * - Requires VITE_API_BASE_URL in cross-origin production builds or falls back to
+ *   same-origin proxy (e.g. Nginx reverse proxy) rather than hardcoding an external URL.
  */
 
 import axios from "axios";
 
-const DEFAULT_API_BASE_URL =
-  typeof window !== "undefined" &&
-  window.location.hostname !== "localhost" &&
-  window.location.hostname !== "127.0.0.1"
-    ? "https://cognicode-2uj7.onrender.com"
-    : "http://localhost:8000";
-
-const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
-).replace(/\/+$/, "");
-
-let _token = null;
-try {
-  _token = typeof window !== "undefined" ? localStorage.getItem("cognicode_token") : null;
-} catch {
-  // Storage unavailable
+function resolveApiBaseUrl() {
+  const configured = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  if (import.meta.env.DEV) return "http://localhost:8000";
+  return "";
 }
 
+export const API_BASE_URL = resolveApiBaseUrl();
+
+// In-memory short-lived access token only (zero localStorage exposure)
+let _token = null;
 let _onUnauthorized = null;
+let _refreshPromise = null;
 
 export function setToken(token) {
   _token = token || null;
-  try {
-    if (token) {
-      localStorage.setItem("cognicode_token", token);
-    } else {
-      localStorage.removeItem("cognicode_token");
-    }
-  } catch {
-    // Storage unavailable
-  }
 }
 
 export function getToken() {
-  if (!_token && typeof window !== "undefined") {
-    try {
-      _token = localStorage.getItem("cognicode_token") || null;
-    } catch {
-      // Storage unavailable
-    }
-  }
   return _token;
 }
 
 export function clearToken() {
   _token = null;
-  try {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("cognicode_token");
-    }
-  } catch {
-    // Storage unavailable
-  }
 }
-export function onUnauthorized(cb) { _onUnauthorized = cb; }
+
+export function onUnauthorized(cb) {
+  _onUnauthorized = cb;
+}
 
 const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 60000, // 60s — LLM/slow-network tolerance
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
+
+export async function refreshAccessToken() {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = axios
+    .post(`${API_BASE_URL}/auth/refresh`, null, {
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+      timeout: 15000,
+    })
+    .then((res) => {
+      const data = res.data;
+      setToken(data?.access_token || null);
+      return data;
+    })
+    .finally(() => {
+      _refreshPromise = null;
+    });
+  return _refreshPromise;
+}
 
 api.interceptors.request.use((config) => {
   if (_token) config.headers.Authorization = `Bearer ${_token}`;
@@ -75,8 +71,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Timeout
+  async (error) => {
     if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
       const e = new Error("The request took too long. Please try again.");
       e.status = 0;
@@ -84,18 +79,36 @@ api.interceptors.response.use(
       return Promise.reject(e);
     }
 
-    // Network error (no response)
     if (!error.response) {
-      const e = new Error(
-        "Cannot reach the server. Please check your connection."
-      );
+      const e = new Error("Cannot reach the server. Please check your connection.");
       e.status = 0;
       e.code = "network_error";
       return Promise.reject(e);
     }
 
+    const originalRequest = error.config;
     const status = error.response.status;
-    if (status === 401) {
+    const reqUrl = originalRequest?.url || "";
+    const isAuthRoute =
+      reqUrl.includes("/auth/login") ||
+      reqUrl.includes("/auth/register") ||
+      reqUrl.includes("/auth/refresh");
+
+    if (status === 401 && originalRequest && !originalRequest._retry && !isAuthRoute) {
+      originalRequest._retry = true;
+      try {
+        const refreshed = await refreshAccessToken();
+        if (refreshed?.access_token) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${refreshed.access_token}`;
+          return api(originalRequest);
+        }
+      } catch {
+        // Refresh failed -> force re-authentication
+      }
+      clearToken();
+      if (typeof _onUnauthorized === "function") _onUnauthorized();
+    } else if (status === 401 && !isAuthRoute) {
       clearToken();
       if (typeof _onUnauthorized === "function") _onUnauthorized();
     }

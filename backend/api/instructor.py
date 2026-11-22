@@ -1,19 +1,7 @@
 """
 Module: backend.api.instructor
-Purpose: Instructor analytics, cohort oversight, courses, and reflection endpoints.
-
-Endpoints:
-  - GET  /instructor/courses
-  - POST /instructor/courses
-  - GET  /instructor/cohort-analytics
-  - GET  /instructor/students/{student_id}
-  - GET  /instructor/heatmap
-  - POST /instructor/join-course  (student joins course)
-  - GET  /instructor/reflections/student  (student reflection journal)
-  - POST /instructor/reflections/{session_id}/generate  (generate AI draft reflection)
-  - POST /instructor/reflections/{session_id}/submit    (submit reflection)
-
-Created: 18/11/2026
+Purpose: Instructor analytics, cohort oversight, normalized courses,
+         practice reminders, and student reflection endpoints.
 """
 
 import logging
@@ -21,16 +9,24 @@ import random
 import string
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import case, distinct, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
-from auth.dependencies import get_current_user, require_role
-from db.models import InstructorCourse, Reflection, Session, User
-from db.session import get_db
 from agents.reflection import ReflectionAgent
+from auth.dependencies import get_current_user, require_role, require_student
 from core.cds_engine import get_student_cds_aggregate
 from core.report_generator import generate_cohort_pdf_report
+from db.models import (
+    CourseEnrollment,
+    InstructorCourse,
+    PracticeReminder,
+    Reflection,
+    Session,
+    User,
+)
+from db.session import get_db
 from schemas.instructor import (
     CohortOverviewResponse,
     CourseCreateRequest,
@@ -38,6 +34,8 @@ from schemas.instructor import (
     HighRiskStudentSummary,
     JoinCourseRequest,
     JoinCourseResponse,
+    PracticeReminderRequest,
+    PracticeReminderResponse,
     ReflectionDraftResponse,
     ReflectionResponse,
     ReflectionSubmitRequest,
@@ -59,6 +57,61 @@ def _generate_course_code(prefix: str = "CS") -> str:
     return f"{prefix}{num}{char}"
 
 
+def _verify_instructor_student_access(
+    instructor_id: UUID,
+    student_id: UUID,
+    db: DBSession,
+) -> tuple[User, CourseEnrollment]:
+    """
+    Verify target user is a student AND is enrolled in at least one course
+    taught by `instructor_id`. Prevents cross-instructor IDOR access.
+    """
+    student = db.get(User, student_id)
+    if not student or student.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found.",
+        )
+
+    enrollment = (
+        db.query(CourseEnrollment)
+        .join(InstructorCourse, CourseEnrollment.course_id == InstructorCourse.id)
+        .filter(
+            InstructorCourse.instructor_id == instructor_id,
+            CourseEnrollment.student_id == student_id,
+        )
+        .first()
+    )
+    if enrollment is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this student's records.",
+        )
+    return student, enrollment
+
+
+def _get_enrolled_student_ids(
+    instructor_id: UUID,
+    db: DBSession,
+    course_id: UUID | None = None,
+) -> list[UUID]:
+    """Return distinct student UUIDs enrolled in the instructor's course(s)."""
+    q = (
+        db.query(distinct(CourseEnrollment.student_id))
+        .join(InstructorCourse, CourseEnrollment.course_id == InstructorCourse.id)
+        .filter(InstructorCourse.instructor_id == instructor_id)
+    )
+    if course_id is not None:
+        course = db.get(InstructorCourse, course_id)
+        if not course or course.instructor_id != instructor_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found.",
+            )
+        q = q.filter(CourseEnrollment.course_id == course_id)
+    return [row[0] for row in q.all()]
+
+
 # =============================================================================
 # COURSES MANAGEMENT
 # =============================================================================
@@ -66,33 +119,39 @@ def _generate_course_code(prefix: str = "CS") -> str:
 @router.get(
     "/courses",
     response_model=list[CourseResponse],
-    summary="List instructor courses",
+    summary="List instructor courses with SQL-aggregated enrollment counts",
 )
 def list_instructor_courses(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> list[CourseResponse]:
-    courses = (
-        db.query(InstructorCourse)
+    rows = (
+        db.query(
+            InstructorCourse,
+            func.count(CourseEnrollment.id).label("enrolled_count"),
+        )
+        .outerjoin(CourseEnrollment, InstructorCourse.id == CourseEnrollment.course_id)
         .filter(InstructorCourse.instructor_id == current_user.id)
+        .group_by(InstructorCourse.id)
         .order_by(InstructorCourse.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
-    result = []
-    for c in courses:
-        enrolled = len(c.enrolled_students or [])
-        result.append(
-            CourseResponse(
-                id=c.id,
-                instructor_id=c.instructor_id,
-                course_name=c.course_name,
-                course_code=c.course_code,
-                description=c.description,
-                enrolled_count=enrolled,
-                created_at=c.created_at,
-            )
+    return [
+        CourseResponse(
+            id=c.id,
+            instructor_id=c.instructor_id,
+            course_name=c.course_name,
+            course_code=c.course_code,
+            description=c.description,
+            enrolled_count=int(cnt or 0),
+            created_at=c.created_at,
         )
-    return result
+        for c, cnt in rows
+    ]
 
 
 @router.post(
@@ -139,7 +198,6 @@ def create_course(
         course_name=course_name,
         course_code=code,
         description=payload.description.strip() if payload.description else None,
-        enrolled_students=[],
     )
     db.add(course)
     try:
@@ -169,31 +227,42 @@ def create_course(
     summary="List courses the authenticated student is enrolled in",
 )
 def list_student_courses(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_student),
     db: DBSession = Depends(get_db),
 ) -> list[CourseResponse]:
-    all_courses = (
-        db.query(InstructorCourse)
-        .order_by(InstructorCourse.created_at.desc())
+    count_subq = (
+        db.query(
+            CourseEnrollment.course_id,
+            func.count(CourseEnrollment.id).label("enrolled_count"),
+        )
+        .group_by(CourseEnrollment.course_id)
+        .subquery()
+    )
+
+    rows = (
+        db.query(
+            InstructorCourse,
+            func.coalesce(count_subq.c.enrolled_count, 0).label("enrolled_count"),
+        )
+        .join(CourseEnrollment, InstructorCourse.id == CourseEnrollment.course_id)
+        .outerjoin(count_subq, InstructorCourse.id == count_subq.c.course_id)
+        .filter(CourseEnrollment.student_id == current_user.id)
+        .order_by(CourseEnrollment.enrolled_at.desc())
         .all()
     )
-    user_str = str(current_user.id)
-    result = []
-    for c in all_courses:
-        enrolled = list(c.enrolled_students or [])
-        if user_str in enrolled:
-            result.append(
-                CourseResponse(
-                    id=c.id,
-                    instructor_id=c.instructor_id,
-                    course_name=c.course_name,
-                    course_code=c.course_code,
-                    description=c.description,
-                    enrolled_count=len(enrolled),
-                    created_at=c.created_at,
-                )
-            )
-    return result
+
+    return [
+        CourseResponse(
+            id=c.id,
+            instructor_id=c.instructor_id,
+            course_name=c.course_name,
+            course_code=c.course_code,
+            description=c.description,
+            enrolled_count=int(cnt or 0),
+            created_at=c.created_at,
+        )
+        for c, cnt in rows
+    ]
 
 
 @router.post(
@@ -203,7 +272,7 @@ def list_student_courses(
 )
 def join_course(
     payload: JoinCourseRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_student),
     db: DBSession = Depends(get_db),
 ) -> JoinCourseResponse:
     code = payload.course_code.strip().upper()
@@ -214,12 +283,20 @@ def join_course(
             detail=f"Course with join code '{code}' not found.",
         )
 
-    enrolled = list(course.enrolled_students or [])
-    user_str = str(current_user.id)
-    if user_str not in enrolled:
-        enrolled.append(user_str)
-        course.enrolled_students = enrolled
-        db.commit()
+    existing = (
+        db.query(CourseEnrollment)
+        .filter(
+            CourseEnrollment.course_id == course.id,
+            CourseEnrollment.student_id == current_user.id,
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(CourseEnrollment(course_id=course.id, student_id=current_user.id))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
 
     return JoinCourseResponse(
         success=True,
@@ -237,27 +314,32 @@ def join_course(
 @router.get(
     "/cohort-analytics",
     response_model=CohortOverviewResponse,
-    summary="Cohort aggregate CDS statistics and at-risk students",
+    summary="Cohort aggregate CDS statistics and enrolled student roster",
 )
 def get_cohort_analytics(
+    course_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> CohortOverviewResponse:
-    # Gather students from instructor's courses
-    courses = db.query(InstructorCourse).filter(InstructorCourse.instructor_id == current_user.id).all()
-    enrolled_ids = set()
-    for c in courses:
-        for sid in (c.enrolled_students or []):
-            try:
-                enrolled_ids.add(UUID(sid))
-            except ValueError:
-                pass
+    enrolled_ids = _get_enrolled_student_ids(current_user.id, db, course_id=course_id)
+    if not enrolled_ids:
+        return CohortOverviewResponse(
+            total_students=0,
+            average_cds=0.0,
+            high_risk_count=0,
+            moderate_risk_count=0,
+            low_risk_count=0,
+            distribution={"low": 0, "moderate": 0, "high": 0},
+            high_risk_students=[],
+        )
 
-    # Only include students actually enrolled in this instructor's courses
-    students = []
-    if enrolled_ids:
-        students = db.query(User).filter(User.id.in_(enrolled_ids)).all()
-
+    students = (
+        db.query(User)
+        .filter(User.id.in_(enrolled_ids), User.role == "student")
+        .all()
+    )
     total_students = len(students)
     if total_students == 0:
         return CohortOverviewResponse(
@@ -270,50 +352,71 @@ def get_cohort_analytics(
             high_risk_students=[],
         )
 
-    high_risk: list[HighRiskStudentSummary] = []
-    scores = []
-    dist = {"low": 0, "moderate": 0, "high": 0}
-
+    # SQL-aggregated per-student session telemetry
     student_ids = [s.id for s in students]
-    all_sessions = (
-        db.query(Session)
+    agg_rows = (
+        db.query(
+            Session.student_id,
+            func.avg(Session.dependency_score).label("avg_cds"),
+            func.coalesce(func.sum(Session.solution_requests), 0).label("total_sol"),
+        )
+        .filter(Session.student_id.in_(student_ids))
+        .group_by(Session.student_id)
+        .all()
+    )
+    agg_by_student = {r.student_id: r for r in agg_rows}
+
+    # Fetch only struggling topics & hint_levels_used columns instead of full ORM objects
+    session_meta_rows = (
+        db.query(
+            Session.student_id,
+            Session.topic,
+            Session.dependency_score,
+            Session.hint_levels_used,
+        )
         .filter(Session.student_id.in_(student_ids))
         .all()
     )
-    sessions_by_student: dict[UUID, list[Session]] = {sid: [] for sid in student_ids}
-    for sess in all_sessions:
-        sessions_by_student.setdefault(sess.student_id, []).append(sess)
+    topics_by_student: dict[UUID, list[str]] = {}
+    max_hint_by_student: dict[UUID, int] = {}
+    for sid, topic, dep_score, hint_levels in session_meta_rows:
+        if (dep_score or 0.0) > 60.0 and topic:
+            topics_by_student.setdefault(sid, []).append(topic)
+        hint_max = max(hint_levels) if hint_levels else 0
+        if hint_max > max_hint_by_student.get(sid, 0):
+            max_hint_by_student[sid] = hint_max
+
+    roster: list[HighRiskStudentSummary] = []
+    scores: list[float] = []
+    dist = {"low": 0, "moderate": 0, "high": 0}
 
     for s in students:
-        sessions = sessions_by_student.get(s.id, [])
-        summary = get_student_cds_aggregate(s.id, db, sessions=sessions)
-        score = summary.score
-        band = summary.band
+        agg = agg_by_student.get(s.id)
+        score = round(float(agg.avg_cds), 1) if agg and agg.avg_cds is not None else 0.0
+        if score <= 40.0:
+            band = "low"
+        elif score <= 70.0:
+            band = "moderate"
+        else:
+            band = "high"
         scores.append(score)
-        dist[band] = dist.get(band, 0) + 1
+        dist[band] += 1
 
-        struggling_topics = [
-            sess.topic for sess in sessions
-            if (sess.dependency_score or 0.0) > 60.0
-        ]
-        max_h = max([max(sess.hint_levels_used or [0]) for sess in sessions], default=0)
-        sol_asks = sum((sess.solution_requests or 0) for sess in sessions)
-
-        high_risk.append(
+        roster.append(
             HighRiskStudentSummary(
                 student_id=s.id,
                 name=s.name,
                 email=s.email,
                 cds_score=score,
                 risk_band=band,
-                topics_struggling=list(set(struggling_topics))[:3],
-                solution_requests=sol_asks,
-                max_hint_level=max_h,
+                topics_struggling=list(dict.fromkeys(topics_by_student.get(s.id, [])))[:3],
+                solution_requests=int(agg.total_sol or 0) if agg else 0,
+                max_hint_level=max_hint_by_student.get(s.id, 0),
             )
         )
 
     avg_score = round(sum(scores) / max(1, len(scores)), 1)
-    high_risk.sort(key=lambda x: x.cds_score, reverse=True)
+    roster.sort(key=lambda x: x.cds_score, reverse=True)
 
     return CohortOverviewResponse(
         total_students=total_students,
@@ -322,7 +425,7 @@ def get_cohort_analytics(
         moderate_risk_count=dist["moderate"],
         low_risk_count=dist["low"],
         distribution=dist,
-        high_risk_students=high_risk,
+        high_risk_students=roster[offset : offset + limit],
     )
 
 
@@ -331,11 +434,42 @@ def get_cohort_analytics(
     summary="Export PDF Audit Report for Cohort CDS",
 )
 def export_cohort_pdf(
+    course_id: UUID | None = Query(default=None),
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ):
-    cohort = get_cohort_analytics(current_user=current_user, db=db)
-    pdf_bytes = generate_cohort_pdf_report(cohort, course_name="Data Structures & Algorithms")
+    if course_id is not None:
+        course = db.get(InstructorCourse, course_id)
+        if not course or course.instructor_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Course not found.",
+            )
+        course_label = f"{course.course_code} — {course.course_name}"
+    else:
+        courses = (
+            db.query(InstructorCourse)
+            .filter(InstructorCourse.instructor_id == current_user.id)
+            .order_by(InstructorCourse.created_at.desc())
+            .all()
+        )
+        if len(courses) == 1:
+            course_label = f"{courses[0].course_code} — {courses[0].course_name}"
+        elif len(courses) > 1:
+            codes = ", ".join(c.course_code for c in courses[:4])
+            suffix = f" (+{len(courses) - 4} more)" if len(courses) > 4 else ""
+            course_label = f"All Owned Courses ({codes}{suffix})"
+        else:
+            course_label = "No Active Courses"
+
+    cohort = get_cohort_analytics(
+        course_id=course_id,
+        limit=500,
+        offset=0,
+        current_user=current_user,
+        db=db,
+    )
+    pdf_bytes = generate_cohort_pdf_report(cohort, course_name=course_label)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -344,30 +478,34 @@ def export_cohort_pdf(
 
 
 # =============================================================================
-# INDIVIDUAL STUDENT DRILLDOWN
+# INDIVIDUAL STUDENT DRILLDOWN & PRACTICE REMINDERS
 # =============================================================================
 
 @router.get(
     "/students/{student_id}",
     response_model=StudentDetailResponse,
-    summary="Detailed student profile, 6-factor CDS radar, and sessions",
+    summary="Detailed student profile, 6-factor CDS breakdown, and paginated sessions/reflections",
 )
 def get_student_detail(
     student_id: UUID,
+    session_limit: int = Query(default=50, ge=1, le=200),
+    session_offset: int = Query(default=0, ge=0),
+    reflection_limit: int = Query(default=25, ge=1, le=100),
+    reflection_offset: int = Query(default=0, ge=0),
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> StudentDetailResponse:
-    student = db.get(User, student_id)
-    if not student or student.role != "student":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found.")
+    student, _ = _verify_instructor_student_access(current_user.id, student_id, db)
 
+    summary = get_student_cds_aggregate(student.id, db)
     sessions = (
         db.query(Session)
         .filter(Session.student_id == student.id)
         .order_by(Session.started_at.desc())
+        .offset(session_offset)
+        .limit(session_limit)
         .all()
     )
-    summary = get_student_cds_aggregate(student.id, db, sessions=sessions)
 
     session_summaries = [
         StudentSessionSummary(
@@ -386,6 +524,8 @@ def get_student_detail(
         db.query(Reflection)
         .filter(Reflection.student_id == student.id)
         .order_by(Reflection.created_at.desc())
+        .offset(reflection_offset)
+        .limit(reflection_limit)
         .all()
     )
     ref_list = [
@@ -412,66 +552,129 @@ def get_student_detail(
     )
 
 
+@router.post(
+    "/students/{student_id}/remind",
+    response_model=PracticeReminderResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send and persist a practice reminder to an enrolled student",
+)
+def send_practice_reminder(
+    student_id: UUID,
+    payload: PracticeReminderRequest,
+    current_user: User = Depends(require_role("instructor")),
+    db: DBSession = Depends(get_db),
+) -> PracticeReminderResponse:
+    student, enrollment = _verify_instructor_student_access(current_user.id, student_id, db)
+
+    reminder = PracticeReminder(
+        instructor_id=current_user.id,
+        student_id=student.id,
+        course_id=enrollment.course_id,
+        topic=payload.topic.strip(),
+        message=payload.message.strip(),
+    )
+    db.add(reminder)
+    db.commit()
+    db.refresh(reminder)
+
+    return PracticeReminderResponse.model_validate(reminder)
+
+
+@router.get(
+    "/student/reminders",
+    response_model=list[PracticeReminderResponse],
+    summary="List practice reminders sent to the authenticated student",
+)
+def list_student_reminders(
+    unread_only: bool = Query(default=True),
+    current_user: User = Depends(require_student),
+    db: DBSession = Depends(get_db),
+) -> list[PracticeReminderResponse]:
+    q = db.query(PracticeReminder).filter(PracticeReminder.student_id == current_user.id)
+    if unread_only:
+        q = q.filter(PracticeReminder.is_read.is_(False))
+    rows = q.order_by(PracticeReminder.created_at.desc()).limit(20).all()
+    return [PracticeReminderResponse.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/student/reminders/{reminder_id}/acknowledge",
+    response_model=PracticeReminderResponse,
+    summary="Mark a practice reminder as read/acknowledged",
+)
+def acknowledge_student_reminder(
+    reminder_id: UUID,
+    current_user: User = Depends(require_student),
+    db: DBSession = Depends(get_db),
+) -> PracticeReminderResponse:
+    reminder = db.get(PracticeReminder, reminder_id)
+    if reminder is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reminder not found.",
+        )
+    if reminder.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this reminder.",
+        )
+    reminder.is_read = True
+    db.commit()
+    db.refresh(reminder)
+    return PracticeReminderResponse.model_validate(reminder)
+
+
 # =============================================================================
-# TOPIC HEATMAP
+# TOPIC HEATMAP (SQL-AGGREGATED)
 # =============================================================================
 
 @router.get(
     "/heatmap",
     response_model=list[TopicHeatmapEntry],
-    summary="Topic-by-topic dependency risk matrix",
+    summary="Topic-by-topic dependency risk matrix aggregated in SQL",
 )
 def get_topic_heatmap(
+    course_id: UUID | None = Query(default=None),
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> list[TopicHeatmapEntry]:
-    courses = db.query(InstructorCourse).filter(InstructorCourse.instructor_id == current_user.id).all()
-    enrolled_ids = set()
-    for c in courses:
-        for sid in (c.enrolled_students or []):
-            try:
-                enrolled_ids.add(UUID(sid))
-            except ValueError:
-                pass
-
+    enrolled_ids = _get_enrolled_student_ids(current_user.id, db, course_id=course_id)
     if not enrolled_ids:
         return []
 
-    sessions = db.query(Session).filter(Session.student_id.in_(enrolled_ids)).all()
-    if not sessions:
-        return []
+    rows = (
+        db.query(
+            Session.topic,
+            func.count(distinct(Session.student_id)).label("student_count"),
+            func.avg(Session.dependency_score).label("avg_cds"),
+            func.sum(case((Session.dependency_score >= 71.0, 1), else_=0)).label("high_risk_count"),
+            func.coalesce(func.sum(Session.solution_requests), 0).label("total_sol_reqs"),
+            func.count(Session.id).label("session_count"),
+        )
+        .filter(Session.student_id.in_(enrolled_ids))
+        .group_by(Session.topic)
+        .order_by(func.avg(Session.dependency_score).desc())
+        .all()
+    )
 
-    by_topic: dict[str, list[Session]] = {}
-    for sess in sessions:
-        topic = sess.topic or "General"
-        by_topic.setdefault(topic, []).append(sess)
-
-    entries = []
-    for topic, s_list in by_topic.items():
-        scores = [s.dependency_score or 0.0 for s in s_list]
-        avg_score = round(sum(scores) / len(scores), 1)
-        high_risk_cnt = sum(1 for s in s_list if (s.dependency_score or 0.0) >= 71.0)
-        total_sol_reqs = sum((s.solution_requests or 0) for s in s_list)
-        sol_ratio = round(min(1.0, total_sol_reqs / max(1, len(s_list) * 3)), 2)
-
-        band = "low"
-        if avg_score >= 71.0:
-            band = "high"
-        elif avg_score >= 41.0:
-            band = "moderate"
-
+    entries: list[TopicHeatmapEntry] = []
+    for row in rows:
+        avg_score = round(float(row.avg_cds or 0.0), 1)
+        band = "high" if avg_score >= 71.0 else "moderate" if avg_score >= 41.0 else "low"
+        sol_ratio = round(
+            min(1.0, int(row.total_sol_reqs or 0) / max(1, int(row.session_count or 1) * 3)),
+            2,
+        )
         entries.append(
             TopicHeatmapEntry(
-                topic=topic,
-                student_count=len(set(s.student_id for s in s_list)),
+                topic=row.topic or "General",
+                student_count=int(row.student_count or 0),
                 average_cds=avg_score,
                 risk_band=band,
-                high_risk_count=high_risk_cnt,
+                high_risk_count=int(row.high_risk_count or 0),
                 solution_ratio=sol_ratio,
             )
         )
-
-    entries.sort(key=lambda e: e.average_cds, reverse=True)
     return entries
 
 
@@ -485,40 +688,30 @@ def get_topic_heatmap(
     summary="Get authenticated student's reflection journal",
 )
 def get_student_reflections(
+    limit: int = Query(default=50, ge=1, le=200),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db),
 ) -> list[ReflectionResponse]:
-    reflections = (
-        db.query(Reflection)
+    rows = (
+        db.query(Reflection, Session.topic)
+        .outerjoin(Session, Reflection.session_id == Session.id)
         .filter(Reflection.student_id == current_user.id)
         .order_by(Reflection.created_at.desc())
+        .limit(limit)
         .all()
     )
-    if not reflections:
-        return []
-
-    session_ids = list({r.session_id for r in reflections})
-    sessions_map = {
-        s.id: s
-        for s in db.query(Session).filter(Session.id.in_(session_ids)).all()
-    }
-
-    result = []
-    for r in reflections:
-        sess = sessions_map.get(r.session_id)
-        topic_name = sess.topic if sess else "General Programming"
-        result.append(
-            ReflectionResponse(
-                id=r.id,
-                session_id=r.session_id,
-                student_id=r.student_id,
-                topic=topic_name,
-                learned_today=r.learned_today,
-                mistake_to_avoid=r.mistake_to_avoid,
-                created_at=r.created_at,
-            )
+    return [
+        ReflectionResponse(
+            id=r.id,
+            session_id=r.session_id,
+            student_id=r.student_id,
+            topic=topic or "General Programming",
+            learned_today=r.learned_today,
+            mistake_to_avoid=r.mistake_to_avoid,
+            created_at=r.created_at,
         )
-    return result
+        for r, topic in rows
+    ]
 
 
 @router.post(

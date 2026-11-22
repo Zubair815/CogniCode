@@ -16,6 +16,7 @@ import EmptyState from "../components/ui/EmptyState.jsx";
 import StartSessionModal from "../components/chat/StartSessionModal.jsx";
 import InstructorDashboard from "./instructor/InstructorDashboard.jsx";
 import { chatService } from "../services/chatService.js";
+import { instructorService } from "../services/instructorService.js";
 import { chatRoute } from "../constants/routes.js";
 
 function isCancel(err) {
@@ -31,6 +32,7 @@ export default function Dashboard({ role }) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
+  const [reminders, setReminders] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [cdsData, setCdsData] = useState({
@@ -66,12 +68,14 @@ export default function Dashboard({ role }) {
       setSessions(data.sessions || []);
 
       try {
-        const cds = await chatService.getStudentCdsSummary({
-          signal: controller.signal,
-        });
+        const [cds, reminderList] = await Promise.all([
+          chatService.getStudentCdsSummary({ signal: controller.signal }),
+          instructorService.listStudentReminders({ signal: controller.signal }),
+        ]);
         if (cds) setCdsData(cds);
+        if (Array.isArray(reminderList)) setReminders(reminderList);
       } catch {
-        // Keep baseline CDS summary if endpoint is empty
+        // Ignore secondary summary failures
       }
     } catch (err) {
       if (isCancel(err)) return;
@@ -113,25 +117,25 @@ export default function Dashboard({ role }) {
     {
       name: "Direct solution requests",
       value: cdsData.breakdown?.solution_frequency ?? 0,
-      band: !hasSessions ? "0%" : cdsData.score > 70 ? "High" : "Low",
+      band: `${Math.round(cdsData.breakdown?.solution_frequency ?? 0)}% of turns`,
     },
     {
       name: "Average hint depth",
       value: cdsData.breakdown?.hint_depth ?? 0,
-      band: !hasSessions ? "Level 0" : cdsData.score > 70 ? "Level 4–5" : "Level 1–2",
+      band: !hasSessions ? "Level 0" : `Level ${avgHintLevel}`,
     },
     {
-      name: "Retry persistence",
+      name: "Attempt perseverance",
       value: cdsData.breakdown?.retry_count ?? 0,
       band: `${Math.round(cdsData.breakdown?.retry_count ?? 0)}%`,
     },
     {
-      name: "Response interval",
+      name: "Deliberate response pacing",
       value: cdsData.breakdown?.time_gap ?? 0,
       band: `${Math.round(cdsData.breakdown?.time_gap ?? 0)}%`,
     },
     {
-      name: "Debugging attempts",
+      name: "Independent debugging",
       value: cdsData.breakdown?.debugging_attempts ?? 0,
       band: `${Math.round(cdsData.breakdown?.debugging_attempts ?? 0)}%`,
     },
@@ -141,6 +145,15 @@ export default function Dashboard({ role }) {
       band: `${Math.round(cdsData.breakdown?.quiz_performance ?? 0)}%`,
     },
   ];
+
+  const handleDismissReminder = async (id) => {
+    try {
+      await instructorService.acknowledgeReminder(id);
+      setReminders((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      // ignore transient dismiss error
+    }
+  };
 
   return (
     <AppLayout activeCds={cdsData.score}>
@@ -206,6 +219,22 @@ export default function Dashboard({ role }) {
             </div>
           </div>
         </div>
+
+        {/* Instructor practice reminders */}
+        {reminders.map((rem) => (
+          <Alert
+            key={rem.id}
+            tone="info"
+            title={`Practice reminder · ${rem.topic}`}
+            onDismiss={() => handleDismissReminder(rem.id)}
+            action={{
+              label: "Practice",
+              onClick: () => setModalOpen(true),
+            }}
+          >
+            {rem.message}
+          </Alert>
+        ))}
 
         {/* Focus notice — only shown when weak topics actually exist */}
         {cdsData.weak_topics && cdsData.weak_topics.length > 0 && (

@@ -41,6 +41,32 @@ _CONCEPTUAL_CHECKS_FALLBACK = {
         ],
         "explanation": "Because all nodes in the left subtree are smaller than root, and all nodes in right subtree are larger, Inorder traversal strictly yields sorted keys.",
     },
+    "linked list": {
+        "id": "chk-ll-1",
+        "topic": "Linked Lists",
+        "prompt": "When reversing a singly linked list in-place, why must you store curr.next before updating curr.next = prev?",
+        "code_snippet": "while curr:\n    nxt = curr.next\n    curr.next = prev\n    prev = curr\n    curr = nxt",
+        "options": [
+            {"id": "A", "text": "To keep the time complexity O(log n).", "correct": False},
+            {"id": "B", "text": "Overwriting curr.next loses the only pointer to the rest of the unvisited list.", "correct": True},
+            {"id": "C", "text": "Because Python forbids reassigning object attributes inside loops.", "correct": False},
+            {"id": "D", "text": "To automatically free the previous node's memory.", "correct": False},
+        ],
+        "explanation": "Singly linked list nodes only point forward. Without saving curr.next first, redirecting curr.next severs access to the remaining nodes.",
+    },
+    "sorting": {
+        "id": "chk-sort-1",
+        "topic": "Sorting Algorithms",
+        "prompt": "What distinguishes a stable sorting algorithm (such as Merge Sort) from an unstable one?",
+        "code_snippet": None,
+        "options": [
+            {"id": "A", "text": "It always uses O(1) auxiliary space.", "correct": False},
+            {"id": "B", "text": "It preserves the relative order of records that compare with equal keys.", "correct": True},
+            {"id": "C", "text": "It never executes worst-case O(n^2) comparisons.", "correct": False},
+            {"id": "D", "text": "It operates exclusively on primitive integers.", "correct": False},
+        ],
+        "explanation": "Stability guarantees that two items with identical sort keys appear in the output in the exact relative order they had in the input.",
+    },
     "general": {
         "id": "chk-gen-1",
         "topic": "Algorithmic Invariants",
@@ -72,6 +98,32 @@ class AssessmentAgent:
             if t_key in key:
                 return check
         return _CONCEPTUAL_CHECKS_FALLBACK["general"]
+
+    def list_public_questions(self, topic: str | None = None) -> list[dict]:
+        """Return questions without exposing answer keys (`correct`) to the client."""
+        ordered = []
+        if topic:
+            ordered.append(self.get_or_generate_question(topic))
+        for q in _CONCEPTUAL_CHECKS_FALLBACK.values():
+            if all(existing["id"] != q["id"] for existing in ordered):
+                ordered.append(q)
+
+        return [
+            {
+                "id": q["id"],
+                "topic": q["topic"],
+                "prompt": q["prompt"],
+                "code_snippet": q.get("code_snippet"),
+                "options": [{"id": o["id"], "text": o["text"]} for o in q["options"]],
+            }
+            for q in ordered
+        ]
+
+    def get_question_by_id(self, question_id: str) -> ConceptCheckQuestion | None:
+        for q in _CONCEPTUAL_CHECKS_FALLBACK.values():
+            if q["id"] == question_id:
+                return q
+        return None
 
     def evaluate_answer(self, question: ConceptCheckQuestion, student_answer: str) -> tuple[bool, str]:
         """

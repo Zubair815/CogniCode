@@ -1,58 +1,42 @@
 /**
  * useWebSocket
  * ------------
- * Manages a WebSocket connection with:
- *   - Auto-reconnect with exponential backoff
- *   - Message queue for messages sent while disconnected
- *   - Ready/typing/response/error message dispatch
- *   - Clean close on unmount
- *
- * The hook is session-scoped: it connects to /ws/chat/{sessionId}
- * with the current JWT as a query param.
- *
- * Usage:
- *   const {
- *     status,        // "connecting" | "open" | "closed"
- *     sendMessage,   // (content: string) => boolean
- *     endSession,    // () => void
- *     lastError,
- *   } = useWebSocket({
- *     sessionId,
- *     onReady,       // (payload) => void
- *     onMessage,     // (payload) => void
- *     onTyping,      // () => void
- *     onError,       // (payload) => void
- *     onEnded,       // (payload) => void
- *   });
- *
- * Created: 10/10/2026
+ * Session-scoped WebSocket hook using single-use short-lived auth tickets
+ * (never placing JWTs in URLs), bounded outgoing queue, and ack-aware ending.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getToken } from "../services/api.js";
+import { API_BASE_URL } from "../services/api.js";
+import { authService } from "../services/authService.js";
 
 function resolveWsBaseUrl() {
-  const defaultBase =
-    typeof window !== "undefined" &&
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-      ? "wss://cognicode-2uj7.onrender.com"
-      : "ws://localhost:8000";
-  const raw =
-    import.meta.env.VITE_WS_BASE_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
-    defaultBase;
-  return raw
-    .trim()
-    .replace(/\/+$/, "")
-    .replace(/^https:\/\//i, "wss://")
-    .replace(/^http:\/\//i, "ws://");
+  const configured = (import.meta.env.VITE_WS_BASE_URL || "").trim();
+  if (configured) {
+    return configured
+      .replace(/\/+$/, "")
+      .replace(/^https:\/\//i, "wss://")
+      .replace(/^http:\/\//i, "ws://");
+  }
+  if (API_BASE_URL) {
+    return API_BASE_URL
+      .replace(/\/+$/, "")
+      .replace(/^https:\/\//i, "wss://")
+      .replace(/^http:\/\//i, "ws://");
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin
+      .replace(/\/+$/, "")
+      .replace(/^https:\/\//i, "wss://")
+      .replace(/^http:\/\//i, "ws://");
+  }
+  return "ws://localhost:8000";
 }
 
 const WS_BASE_URL = resolveWsBaseUrl();
 
 const MAX_RECONNECT_DELAY_MS = 10000;
 const BASE_RECONNECT_DELAY_MS = 800;
+const MAX_QUEUE_SIZE = 10;
 
 export default function useWebSocket({
   sessionId,
@@ -61,6 +45,8 @@ export default function useWebSocket({
   onTyping,
   onError,
   onEnded,
+  onQueueFlush,
+  onQueueFailed,
 } = {}) {
   const [status, setStatus] = useState("connecting");
   const [lastError, setLastError] = useState(null);
@@ -70,31 +56,70 @@ export default function useWebSocket({
   const reconnectTimerRef = useRef(null);
   const queuedRef = useRef([]);
   const manualCloseRef = useRef(false);
-  const handlersRef = useRef({ onReady, onMessage, onTyping, onError, onEnded });
+  const fatalCloseRef = useRef(false);
+  const endResolveRef = useRef(null);
+  const handlersRef = useRef({
+    onReady,
+    onMessage,
+    onTyping,
+    onError,
+    onEnded,
+    onQueueFlush,
+    onQueueFailed,
+  });
 
-
-  // Keep handlers fresh without restarting the socket.
   useEffect(() => {
-    handlersRef.current = { onReady, onMessage, onTyping, onError, onEnded };
-  }, [onReady, onMessage, onTyping, onError, onEnded]);
+    handlersRef.current = {
+      onReady,
+      onMessage,
+      onTyping,
+      onError,
+      onEnded,
+      onQueueFlush,
+      onQueueFailed,
+    };
+  }, [onReady, onMessage, onTyping, onError, onEnded, onQueueFlush, onQueueFailed]);
 
-  // --- Connection setup ---
   useEffect(() => {
     if (!sessionId) return;
 
     manualCloseRef.current = false;
+    fatalCloseRef.current = false;
     reconnectAttemptsRef.current = 0;
 
-    const connect = () => {
-      const token = getToken();
-      if (!token) {
+    const failQueued = (reason) => {
+      if (queuedRef.current.length > 0) {
+        const failedIds = queuedRef.current.map((item) => item.clientId).filter(Boolean);
+        queuedRef.current = [];
+        handlersRef.current.onQueueFailed?.(failedIds, reason);
+      }
+    };
+
+    const connect = async () => {
+      if (manualCloseRef.current || fatalCloseRef.current) return;
+
+      setStatus("connecting");
+      let ticket;
+      try {
+        const resp = await authService.createWsTicket(sessionId);
+        ticket = resp?.ticket;
+      } catch (err) {
+        if (manualCloseRef.current) return;
+        const msg = err?.message || "Failed to obtain WebSocket session ticket.";
         setStatus("closed");
-        setLastError("No auth token available.");
+        setLastError(msg);
+        if (err?.status === 401 || err?.status === 403) {
+          fatalCloseRef.current = true;
+          failQueued(msg);
+          return;
+        }
+        scheduleReconnect();
         return;
       }
 
-      setStatus("connecting");
-      const url = `${WS_BASE_URL}/ws/chat/${sessionId}?token=${encodeURIComponent(token)}`;
+      if (!ticket || manualCloseRef.current) return;
+
+      const url = `${WS_BASE_URL}/ws/chat/${sessionId}?ticket=${encodeURIComponent(ticket)}`;
 
       let socket;
       try {
@@ -111,15 +136,19 @@ export default function useWebSocket({
         setLastError(null);
         reconnectAttemptsRef.current = 0;
 
-        // Flush queued messages
+        const flushedIds = [];
         while (queuedRef.current.length > 0) {
-          const payload = queuedRef.current.shift();
+          const item = queuedRef.current.shift();
           try {
-            socket.send(JSON.stringify(payload));
+            socket.send(JSON.stringify(item.payload));
+            if (item.clientId) flushedIds.push(item.clientId);
           } catch {
-            queuedRef.current.unshift(payload);
+            queuedRef.current.unshift(item);
             break;
           }
+        }
+        if (flushedIds.length > 0) {
+          handlersRef.current.onQueueFlush?.(flushedIds);
         }
       };
 
@@ -148,10 +177,13 @@ export default function useWebSocket({
             h.onError?.(data);
             break;
           case "session_ended":
+            if (endResolveRef.current) {
+              endResolveRef.current(true);
+              endResolveRef.current = null;
+            }
             h.onEnded?.(data);
             break;
           case "pong":
-            // keep-alive reply — no UI action
             break;
           default:
             break;
@@ -162,13 +194,14 @@ export default function useWebSocket({
         setStatus("closed");
         socketRef.current = null;
 
-        // 4401/4403 are fatal: do not reconnect.
         if (event.code === 4401 || event.code === 4403) {
-          setLastError(
+          fatalCloseRef.current = true;
+          const msg =
             event.code === 4401
               ? "Authentication failed. Please sign in again."
-              : "You do not have access to this session."
-          );
+              : "You do not have access to this session.";
+          setLastError(msg);
+          failQueued(msg);
           return;
         }
         if (manualCloseRef.current) return;
@@ -177,7 +210,7 @@ export default function useWebSocket({
       };
 
       socket.onerror = () => {
-        // The browser fires onclose next; we handle reconnect there.
+        // Reconnect handling occurs in onclose.
       };
     };
 
@@ -190,7 +223,7 @@ export default function useWebSocket({
       reconnectAttemptsRef.current += 1;
 
       reconnectTimerRef.current = setTimeout(() => {
-        if (!manualCloseRef.current) connect();
+        if (!manualCloseRef.current && !fatalCloseRef.current) connect();
       }, delay);
     };
 
@@ -199,6 +232,10 @@ export default function useWebSocket({
     return () => {
       manualCloseRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (endResolveRef.current) {
+        endResolveRef.current(false);
+        endResolveRef.current = null;
+      }
       const socket = socketRef.current;
       if (socket && socket.readyState <= 1) {
         try {
@@ -211,34 +248,56 @@ export default function useWebSocket({
     };
   }, [sessionId]);
 
-  // --- Send a chat message ---
-  const sendMessage = useCallback((content) => {
-    if (!content || !content.trim()) return false;
-    const payload = { type: "chat", content: content.trim() };
+  const sendMessage = useCallback((content, clientId = null) => {
+    if (!content || !content.trim()) return { outcome: "invalid" };
+    if (fatalCloseRef.current) {
+      return { outcome: "failed", reason: "Session connection closed." };
+    }
 
+    const payload = { type: "chat", content: content.trim() };
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
       try {
         socket.send(JSON.stringify(payload));
-        return true;
+        return { outcome: "sent" };
       } catch {
-        // fall through to queue
+        // Fall through to bounded queue
       }
     }
-    queuedRef.current.push(payload);
-    return false;
+
+    if (queuedRef.current.length >= MAX_QUEUE_SIZE) {
+      return { outcome: "failed", reason: "Offline message queue is full." };
+    }
+    queuedRef.current.push({ clientId, payload });
+    return { outcome: "queued" };
   }, []);
 
-  // --- End session gracefully ---
   const endSession = useCallback(() => {
     const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return Promise.resolve(false);
+    }
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        if (endResolveRef.current) {
+          endResolveRef.current = null;
+          resolve(false);
+        }
+      }, 1500);
+
+      endResolveRef.current = (acked) => {
+        clearTimeout(timeoutId);
+        resolve(Boolean(acked));
+      };
+
       try {
         socket.send(JSON.stringify({ type: "session_end" }));
       } catch {
-        // ignore
+        clearTimeout(timeoutId);
+        endResolveRef.current = null;
+        resolve(false);
       }
-    }
+    });
   }, []);
 
   return { status, sendMessage, endSession, lastError };

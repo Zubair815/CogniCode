@@ -2,7 +2,6 @@
 Unit tests for Phase 4: Tree-sitter AST Code Analysis, Debugging Coach, and CDS Telemetry Engine.
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -10,18 +9,8 @@ from uuid import uuid4
 from agents.code_analysis import CodeAnalysisAgent
 from agents.debugging_coach import DebuggingCoach
 from core.cds_engine import compute_session_score
-from db.models import Session, Interaction, User
-import db.models
-from db.session import Base, engine, SessionLocal
+from db.models import Interaction, Session, User
 from llm.base import LLMResponse
-
-
-@pytest.fixture(scope="module")
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    yield db
-    db.close()
 
 
 def test_code_analysis_ast():
@@ -118,8 +107,8 @@ def test_debugging_coach_no_code_leakage():
     assert "trace" in guidance.lower()
 
 
-def test_cds_engine_scoring(setup_database):
-    db = setup_database
+def test_cds_engine_scoring(db_session):
+    db = db_session
     
     # Create mock user and session
     user = User(

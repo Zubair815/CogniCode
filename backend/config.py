@@ -11,6 +11,27 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_INSECURE_SECRET_PLACEHOLDERS = frozenset({
+    "",
+    "secret",
+    "changeme",
+    "change_this_to_a_long_random_string",
+    "replace_with_a_long_random_secret",
+    "your_jwt_secret_here",
+    "dev-secret",
+})
+
+
+def is_valid_jwt_secret(secret: str | None) -> bool:
+    """Return True when jwt_secret is non-placeholder and >= 32 characters."""
+    if not secret:
+        return False
+    stripped = secret.strip()
+    if stripped.lower() in _INSECURE_SECRET_PLACEHOLDERS:
+        return False
+    return len(stripped) >= 32
+
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -29,6 +50,7 @@ class Settings(BaseSettings):
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
     frontend_url: str = "http://localhost:5173"
+    max_request_body_bytes: int = 1_048_576  # 1 MB HTTP payload limit
 
     # --- Database (PostgreSQL) ---
     # Set DATABASE_URL in backend/.env; no credentials are stored in source.
@@ -37,7 +59,23 @@ class Settings(BaseSettings):
     # --- Authentication ---
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
-    jwt_expiry_hours: int = 24
+    jwt_expiry_hours: int = 24            # legacy fallback if minutes unset
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+    ws_ticket_expire_seconds: int = 60
+    instructor_invite_code: str = ""
+    cookie_samesite: str = ""             # "" => "none" in production, "lax" otherwise
+    cookie_secure: bool | None = None     # None => True in production, False otherwise
+    redis_url: str = ""                   # Optional Redis URL for multi-instance WS pub/sub
+
+    # --- Rate Limiting ---
+    auth_rate_limit_max: int = 10
+    auth_rate_limit_window_seconds: int = 60
+    register_rate_limit_max: int = 5
+    register_rate_limit_window_seconds: int = 60
+    ws_message_rate_limit_max: int = 15
+    ws_message_rate_limit_window_seconds: int = 60
+    ws_max_message_chars: int = 8000
 
     # --- LLM ---
     llm_provider: str = "ollama"          # "ollama" | "claude" | "groq"

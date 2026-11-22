@@ -4,23 +4,13 @@ Unit tests for Phase 5: Long-term Vector Memory, Reflection Agent, and Instructo
 
 import asyncio
 from uuid import uuid4
-import pytest
 
 from agents.memory import StudentMemoryAgent
 from agents.reflection import ReflectionAgent
 from agents.graph import tutoring_graph
 from agents.state import new_state
-from db.models import Base, Session, User
-from db.session import SessionLocal, engine
+from db.models import Session, User
 from vector.chroma_client import ChromaVectorStore
-
-
-@pytest.fixture(scope="module")
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    yield db
-    db.close()
 
 
 def test_chroma_vector_store(tmp_path):
@@ -85,8 +75,8 @@ def test_reflection_agent_draft():
     assert len(draft["mistake_to_avoid"]) >= 100
 
 
-def test_reflection_agent_save(setup_database):
-    db = setup_database
+def test_reflection_agent_save(db_session):
+    db = db_session
     agent = ReflectionAgent()
 
     user = User(

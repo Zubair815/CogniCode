@@ -1,11 +1,8 @@
 /**
  * Auth API service.
- *
- * Created: 10/10/2026
- * Updated: 10/10/2026
  */
 
-import api from "./api.js";
+import api, { refreshAccessToken } from "./api.js";
 
 export const authService = {
   async register(payload) {
@@ -18,8 +15,19 @@ export const authService = {
     return data;
   },
 
+  async refresh() {
+    return refreshAccessToken();
+  },
+
   async me() {
     const { data } = await api.get("/auth/me");
+    return data;
+  },
+
+  async createWsTicket(sessionId = null) {
+    const { data } = await api.post("/auth/ws-ticket", {
+      session_id: sessionId,
+    });
     return data;
   },
 

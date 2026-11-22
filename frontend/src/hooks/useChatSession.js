@@ -1,7 +1,7 @@
 /**
  * useChatSession
- * Created: 10/10/2026
- * Updated: 10/10/2026
+ * Tracks honest per-message delivery state (`sent` | `queued` | `failed`)
+ * and guarantees server-side session closure via WebSocket ack + REST fallback.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -53,6 +53,7 @@ export default function useChatSession(sessionId) {
             role: "student",
             content: item.message,
             timestamp: item.timestamp,
+            status: "sent",
           });
           flat.push({
             id: `${item.id}-a`,
@@ -107,7 +108,10 @@ export default function useChatSession(sessionId) {
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, assistantMsg]);
+    setMessages((prev) => [
+      ...prev.map((m) => (m.role === "student" && m.status === "queued" ? { ...m, status: "sent" } : m)),
+      assistantMsg,
+    ]);
   }, []);
 
   const handleError = useCallback((payload) => {
@@ -117,6 +121,25 @@ export default function useChatSession(sessionId) {
 
   const handleEnded = useCallback(() => setAssistantTyping(false), []);
 
+  const handleQueueFlush = useCallback((flushedIds) => {
+    if (!flushedIds?.length) return;
+    const idSet = new Set(flushedIds);
+    setMessages((prev) =>
+      prev.map((m) => (idSet.has(m.id) ? { ...m, status: "sent" } : m))
+    );
+    setAssistantTyping(true);
+  }, []);
+
+  const handleQueueFailed = useCallback((failedIds, reason) => {
+    setAssistantTyping(false);
+    if (reason) setError(reason);
+    if (!failedIds?.length) return;
+    const idSet = new Set(failedIds);
+    setMessages((prev) =>
+      prev.map((m) => (idSet.has(m.id) ? { ...m, status: "failed" } : m))
+    );
+  }, []);
+
   const { status, sendMessage: wsSend, endSession: wsEnd, lastError } =
     useWebSocket({
       sessionId,
@@ -125,6 +148,8 @@ export default function useChatSession(sessionId) {
       onTyping: handleTyping,
       onError: handleError,
       onEnded: handleEnded,
+      onQueueFlush: handleQueueFlush,
+      onQueueFailed: handleQueueFailed,
     });
 
   const effectiveError = error || lastError;
@@ -134,22 +159,44 @@ export default function useChatSession(sessionId) {
       const text = (content || "").trim();
       if (!text) return;
 
+      const clientId = `student-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const res = wsSend(text, clientId);
+      if (res.outcome === "invalid") return;
+
       const studentMsg = {
-        id: `student-${Date.now()}`,
+        id: clientId,
         role: "student",
         content: text,
         timestamp: new Date().toISOString(),
+        status: res.outcome, // "sent" | "queued" | "failed"
       };
 
       setMessages((prev) => [...prev, studentMsg]);
-      setAssistantTyping(true);
-      setError(null);
-      wsSend(text);
+      if (res.outcome === "sent") {
+        setAssistantTyping(true);
+        setError(null);
+      } else if (res.outcome === "queued") {
+        setAssistantTyping(false);
+        setError("Connection temporarily unavailable — message queued and will send on reconnect.");
+      } else {
+        setAssistantTyping(false);
+        setError(res.reason || "Message could not be sent.");
+      }
     },
     [wsSend]
   );
 
-  const end = useCallback(() => wsEnd(), [wsEnd]);
+  const end = useCallback(async () => {
+    try {
+      await wsEnd();
+    } catch {
+      // ignore WS failure; enforce closure via REST
+    }
+    if (sessionId) {
+      await chatService.endSession(sessionId);
+    }
+  }, [wsEnd, sessionId]);
+
   const clearError = useCallback(() => setError(null), []);
 
   return useMemo(

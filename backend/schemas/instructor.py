@@ -118,3 +118,25 @@ class ReflectionResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PracticeReminderRequest(BaseModel):
+    topic: str = Field(default="Problem Solving & Concepts", min_length=2, max_length=200)
+    message: str = Field(
+        default="Your instructor recommends practicing an independent problem-solving session before requesting hints.",
+        min_length=5,
+        max_length=1000,
+    )
+
+
+class PracticeReminderResponse(BaseModel):
+    id: UUID
+    instructor_id: UUID
+    student_id: UUID
+    course_id: Optional[UUID] = None
+    topic: str
+    message: str
+    is_read: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

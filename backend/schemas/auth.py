@@ -39,14 +39,16 @@ class RegisterRequest(BaseModel):
     """
     Body for POST /auth/register.
 
-    Open to any learner — no institutional identifier required.
-    The optional `institution` field is free text.
+    Public self-registration defaults to `student`. Registering as an
+    `instructor` requires a valid server-configured institutional
+    invite code (`invite_code`).
     """
 
     name: str = Field(..., min_length=NAME_MIN_LENGTH, max_length=NAME_MAX_LENGTH)
     email: EmailStr
     password: str = Field(..., min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    role: Literal["student", "instructor"]
+    role: Literal["student", "instructor"] = "student"
+    invite_code: Optional[str] = Field(default=None, max_length=128)
     preferred_language: str = Field(default="Python", max_length=50)
     institution: Optional[str] = Field(default=None, max_length=200)
 
@@ -114,6 +116,19 @@ class ForgotPasswordResponse(BaseModel):
     """Response for POST /auth/forgot-password."""
 
     detail: str
+
+
+class WsTicketRequest(BaseModel):
+    """Optional session scope when minting a short-lived WebSocket ticket."""
+
+    session_id: Optional[UUID] = None
+
+
+class WsTicketResponse(BaseModel):
+    """Single-use opaque ticket for WebSocket authentication."""
+
+    ticket: str
+    expires_in: int
 
 
 # =============================================================================

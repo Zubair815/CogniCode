@@ -1,31 +1,44 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth_router, session_router, instructor_router
+from api import auth_router, instructor_router, quiz_router, session_router
+from config import get_settings, is_valid_jwt_secret
+from core import (
+    MaxBodySizeMiddleware,
+    RequestIdMiddleware,
+    SecurityHeadersMiddleware,
+    register_exception_handlers,
+)
 from websocket import websocket_router
-from config import get_settings
-from core import RequestIdMiddleware, register_exception_handlers
-from db.session import Base, engine
-import db.models  # noqa: F401 — register ORM tables before schema initialization
 
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Fail fast on startup if security secrets are missing or insecure."""
+    active_settings = get_settings()
+    if not is_valid_jwt_secret(active_settings.jwt_secret):
+        raise RuntimeError(
+            "Startup aborted: JWT_SECRET must be a non-default secret at least 32 characters long."
+        )
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
     description="A Cognitive-Aware AI Teaching Assistant for Programming Education",
     version=settings.app_version,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.app_env != "production" else None,
+    redoc_url="/redoc" if settings.app_env != "production" else None,
+    lifespan=lifespan,
 )
 
-
-@app.on_event("startup")
-def initialize_database() -> None:
-    """Ensure all ORM tables exist in the configured PostgreSQL database."""
-    Base.metadata.create_all(bind=engine)
-
-
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(MaxBodySizeMiddleware)
 app.add_middleware(RequestIdMiddleware)
 
 configured_origins = [
@@ -34,27 +47,27 @@ configured_origins = [
     if origin.strip()
 ]
 
-allowed_origins = list(
-    dict.fromkeys(
-        [
-            *configured_origins,
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-        ]
+if settings.app_env == "production":
+    allowed_origins = list(dict.fromkeys(configured_origins))
+else:
+    allowed_origins = list(
+        dict.fromkeys(
+            [
+                *configured_origins,
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+            ]
+        )
     )
-)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$|^https://[a-zA-Z0-9-]+\.(vercel\.app|netlify\.app|onrender\.com)$",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     expose_headers=["X-Request-ID"],
 )
 
@@ -63,6 +76,7 @@ register_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(session_router)
 app.include_router(instructor_router)
+app.include_router(quiz_router)
 app.include_router(websocket_router)
 
 

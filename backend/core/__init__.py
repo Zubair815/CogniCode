@@ -11,9 +11,11 @@ Updated: 10/10/2026
 """
 
 from core.errors import register_exception_handlers
-from core.middleware import RequestIdMiddleware
+from core.middleware import MaxBodySizeMiddleware, RequestIdMiddleware, SecurityHeadersMiddleware
 
 __all__ = [
     "register_exception_handlers",
     "RequestIdMiddleware",
+    "MaxBodySizeMiddleware",
+    "SecurityHeadersMiddleware",
 ]

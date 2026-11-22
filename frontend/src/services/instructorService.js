@@ -41,9 +41,24 @@ export const instructorService = {
     return response.data;
   },
 
-  // Student Drilldown
+  // Student Drilldown & Reminders
   async getStudentDetail(studentId, config = {}) {
     const { data } = await api.get(`/instructor/students/${studentId}`, config);
+    return data;
+  },
+
+  async sendPracticeReminder(studentId, payload) {
+    const { data } = await api.post(`/instructor/students/${studentId}/remind`, payload);
+    return data;
+  },
+
+  async listStudentReminders(config = {}) {
+    const { data } = await api.get("/instructor/student/reminders", config);
+    return data;
+  },
+
+  async acknowledgeReminder(reminderId) {
+    const { data } = await api.post(`/instructor/student/reminders/${reminderId}/acknowledge`);
     return data;
   },
 

@@ -46,7 +46,7 @@ export default function AppLayout({
   fullHeight = false,
   headerSlot = null,
 }) {
-  const { user, logout, loginAsDemo } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,17 +100,6 @@ export default function AppLayout({
     } finally {
       navigate(ROUTES.LOGIN, { replace: true });
     }
-  };
-
-  const handleSwitchRole = async () => {
-    const nextRole = isInstructor ? "student" : "instructor";
-    const switched = await loginAsDemo(nextRole);
-    navigate(
-      switched.role === "instructor"
-        ? ROUTES.INSTRUCTOR_DASHBOARD
-        : ROUTES.STUDENT_DASHBOARD,
-      { replace: true }
-    );
   };
 
   const studentLinks = [
@@ -308,15 +297,6 @@ export default function AppLayout({
                 }}
               >
                 {theme === "dark" ? "Light mode" : "Dark mode"}
-              </MenuItem>
-              <MenuItem
-                icon={Users}
-                onSelect={() => {
-                  close();
-                  handleSwitchRole();
-                }}
-              >
-                {isInstructor ? "Switch to student" : "Switch to instructor"}
               </MenuItem>
               <MenuSeparator />
               <MenuItem

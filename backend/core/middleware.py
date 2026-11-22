@@ -17,27 +17,63 @@ import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
+
+from config import get_settings
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """
     Attach a request ID to every incoming request.
-
-    If the client sends X-Request-ID we honor it (useful when a
-    frontend tracing library already generates IDs). Otherwise we
-    generate a fresh UUID4.
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
         incoming = request.headers.get("x-request-id")
         request_id = incoming or str(uuid.uuid4())
 
-        # Store on request.state so handlers can read it.
         request.state.request_id = request_id
-
         response = await call_next(request)
-
-        # Echo back so clients can correlate logs.
         response.headers["X-Request-ID"] = request_id
+        return response
+
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    """Reject oversized HTTP request payloads before JSON parsing."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        settings = get_settings()
+        max_bytes = settings.max_request_body_bytes
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > max_bytes:
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "error": {
+                                "code": "payload_too_large",
+                                "message": "Request body exceeds maximum allowed size.",
+                            },
+                            "request_id": getattr(request.state, "request_id", str(uuid.uuid4())),
+                        },
+                    )
+            except ValueError:
+                pass
+        return await call_next(request)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Attach baseline HTTP security headers to all API responses."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault("Cache-Control", "no-store")
+        if get_settings().app_env == "production":
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
         return response

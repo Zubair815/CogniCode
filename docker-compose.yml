@@ -5,13 +5,17 @@ services:
     image: postgres:16-alpine
     container_name: cognicode-postgres
     environment:
-      - POSTGRES_USER=cognicode
-      - POSTGRES_PASSWORD=cognicode_pass
-      - POSTGRES_DB=cognicode
-    ports:
-      - "5432:5432"
+      - POSTGRES_USER=${POSTGRES_USER:?Set POSTGRES_USER in environment}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in environment}
+      - POSTGRES_DB=${POSTGRES_DB:-cognicode}
+    # PostgreSQL is kept strictly on the internal bridge network (never published on host ports)
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-cognicode}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     networks:
       - cognicode-net
@@ -25,12 +29,17 @@ services:
       - "8000:8000"
     environment:
       - APP_ENV=production
-      - DATABASE_URL=postgresql://cognicode:cognicode_pass@postgres:5432/cognicode
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cognicode}
+      - JWT_SECRET=${JWT_SECRET:?Set a strong 32+ char JWT_SECRET in environment}
+      - INSTRUCTOR_INVITE_CODE=${INSTRUCTOR_INVITE_CODE:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       - CHROMA_PERSIST_DIR=/app/data/chroma
-      - LLM_PROVIDER=ollama
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -41,6 +50,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
     container_name: cognicode-frontend
     ports:
       - "5173:80"

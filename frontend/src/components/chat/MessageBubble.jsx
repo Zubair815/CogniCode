@@ -211,7 +211,7 @@ function FormattedContent({ content = "" }) {
   return <div className="prose-chat">{elements}</div>;
 }
 
-export default function MessageBubble({ role, content, timestamp, intent }) {
+export default function MessageBubble({ role, content, timestamp, intent, status }) {
   const isStudent = role === "student";
   const [copied, setCopied] = useState(false);
 
@@ -228,12 +228,21 @@ export default function MessageBubble({ role, content, timestamp, intent }) {
   if (isStudent) {
     return (
       <div className="flex flex-col items-end animate-fade-in">
-        <div className="max-w-[88%] sm:max-w-[75%] rounded-2xl bg-surface px-4 py-2.5 text-[15px] leading-relaxed text-fg whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <div
+          className={[
+            "max-w-[88%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
+            status === "failed"
+              ? "bg-danger-soft text-danger border border-danger"
+              : "bg-surface text-fg",
+          ].join(" ")}
+        >
           {content}
         </div>
-        {timestamp && (
+        {(timestamp || status === "queued" || status === "failed") && (
           <span className="mt-1 px-1 text-[11px] text-fg-muted">
-            {formatTime(timestamp)}
+            {timestamp ? formatTime(timestamp) : ""}
+            {status === "queued" && " · Queued (reconnecting)"}
+            {status === "failed" && " · Not delivered"}
           </span>
         )}
       </div>
