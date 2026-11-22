@@ -1,13 +1,12 @@
 """
 Module: backend.db.session
-Purpose: SQLAlchemy engine, session factory, and declarative base.
+Purpose: PostgreSQL SQLAlchemy engine, session factory, and declarative base.
          Provides a `get_db()` dependency for FastAPI routes.
-         Supports both local SQLite and cloud PostgreSQL (Supabase, Neon, Render, Railway).
 """
 
 from typing import Generator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from config import get_settings
@@ -16,34 +15,33 @@ from config import get_settings
 settings = get_settings()
 
 
-def _normalize_database_url(raw_url: str) -> str:
+def _normalize_postgres_url(raw_url: str) -> str:
     """
-    Ensure PostgreSQL URLs use the SQLAlchemy 2.0 `postgresql+psycopg2://` scheme.
-    Many cloud providers (Render, Heroku, Supabase, Neon) issue `postgres://` URLs.
+    Ensure PostgreSQL URLs use the SQLAlchemy 2.0 `postgresql+psycopg2://` driver.
+    Cloud providers (Supabase, Neon, Render, Railway) often issue `postgres://`
+    or `postgresql://` URIs.
     """
     url = (raw_url or "").strip()
+    if not url:
+        raise ValueError(
+            "DATABASE_URL is not configured. Set a PostgreSQL connection URI in backend/.env."
+        )
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg2://", 1)
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    return url or "sqlite:///./cognicode.db"
+    return url
 
 
-DATABASE_URL = _normalize_database_url(settings.database_url)
+DATABASE_URL = _normalize_postgres_url(settings.database_url)
 
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    pool_recycle=300,
     echo=False,
     future=True,
 )
-
-if engine.dialect.name == "sqlite":
-    @event.listens_for(engine, "connect")
-    def _enable_sqlite_foreign_keys(connection, _record):
-        cursor = connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
 
 
 SessionLocal = sessionmaker(

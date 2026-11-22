@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     frontend_url: str = "http://localhost:5173"
 
-    # --- Database ---
+    # --- Database (PostgreSQL) ---
     # Set DATABASE_URL in backend/.env; no credentials are stored in source.
-    database_url: str = "sqlite:///./cognicode.db"
+    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/cognicode"
 
     # --- Authentication ---
     jwt_secret: str = ""

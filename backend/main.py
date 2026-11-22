@@ -22,7 +22,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 def initialize_database() -> None:
-    """Ensure all ORM tables exist in the configured database (SQLite or PostgreSQL)."""
+    """Ensure all ORM tables exist in the configured PostgreSQL database."""
     Base.metadata.create_all(bind=engine)
 
 

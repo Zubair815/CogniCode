@@ -11,7 +11,7 @@
   - `frontend/README.md` — Default Vite `# React + Vite` scaffolding boilerplate (superseded by root `README.md` and `DESIGN.md`).
   - `prototype/Redesign Prototype for Cogni Code (Copy).zip` — Duplicate archive copy inside `prototype/`.
   - `docs/D1/BSEF23-63_CogniCode_D1_Requirements_and_System_Designn.docx` — Duplicate draft with a typo in the filename (`Designn.docx`), sitting alongside the final `.docx` and `.pdf` deliverables.
-  - Untracked root-level `cognicode.db` and `data/` directory created when CLI test scripts were run from the repository root instead of `backend/`.
+  - Obsolete local SQLite artifacts (`cognicode.db`, `backend/cognicode.db`) and SQLite fallback code removed in favor of pure PostgreSQL (`Supabase PostgreSQL`).
 - **Unused Dependencies**
   - `recharts` removed from `frontend/package.json` and `frontend/package-lock.json` (`0` references across `frontend/src`, removing 39 transitive packages).
 
@@ -32,8 +32,8 @@
   - `backend/core/cds_engine.py`: Removed unused `Any`, `User`, and `SessionCDSDetailResponse` imports.
   - `backend/tests/test_agents.py`, `test_phase4.py`, `test_phase5.py`, `test_phase6.py`: Removed unused test imports (`pytest`, `io`, `datetime`, `timezone`, `InstructorCourse`, `Reflection`, `calculate_session_signals`).
 - **Documentation & Configuration Synchronized**
-  - Updated [`README.md`](file:///d:/CogniCode/README.md) to reflect the actual architecture, Groq/Claude/Ollama LLM providers, SQLite/PostgreSQL database configuration, accurate directory structure, and test commands.
-  - Updated [`.env.example`](file:///d:/CogniCode/.env.example) to replace unused `CHROMA_HOST` / `CHROMA_PORT` keys with `CHROMA_PERSIST_DIR=./data/chroma` and document default SQLite + optional PostgreSQL `DATABASE_URL` values.
+  - Updated [`README.md`](file:///d:/CogniCode/README.md) to reflect the actual architecture, Groq/Claude/Ollama LLM providers, PostgreSQL database configuration, accurate directory structure, and test commands.
+  - Updated [`.env.example`](file:///d:/CogniCode/.env.example) to replace unused `CHROMA_HOST` / `CHROMA_PORT` keys with `CHROMA_PERSIST_DIR=./data/chroma` and document the PostgreSQL `DATABASE_URL`.
   - Updated [`START-DEMO.txt`](file:///d:/CogniCode/START-DEMO.txt) to remove outdated notes claiming instructor analytics were not implemented.
 
 ---
@@ -42,7 +42,7 @@
 
 - **Active Application & Design System:** All frontend routes, pages, components, hooks, context providers, services, and [`DESIGN.md`](file:///d:/CogniCode/DESIGN.md).
 - **Backend Core, Agents & Security:** All FastAPI routers, LangGraph agent nodes, LLM clients (`groq_client.py`, `claude_client.py`, `ollama_client.py`), ChromaDB vector client, CDS telemetry engine, ReportLab PDF generator, JWT/bcrypt authentication, and WebSocket handlers.
-- **Database & Migrations:** Active local database (`backend/cognicode.db`), vector store (`backend/data/chroma/`), and all Alembic migration revisions in `backend/alembic/versions/` (`21c8cb8cc00b`, `3d2d7cf72cd2`, `bac0a6820dfa`).
+- **Database & Migrations:** PostgreSQL database connection (`backend/db/session.py`), vector store (`backend/data/chroma/`), and all Alembic migration revisions in `backend/alembic/versions/` (`21c8cb8cc00b`, `3d2d7cf72cd2`, `bac0a6820dfa`).
 - **Academic Deliverables & Prototype Reference:** Official FYDP specification documents in `docs/` and the static reference prototype in `prototype/`.
 
 ---

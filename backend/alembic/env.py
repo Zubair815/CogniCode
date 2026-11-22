@@ -25,7 +25,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 # --- Load settings and models ---
 from config import get_settings              # noqa: E402
-from db.session import Base                   # noqa: E402
+from db.session import Base, DATABASE_URL     # noqa: E402
 # Importing models registers them on Base.metadata, which Alembic
 # uses to detect schema changes.
 import db.models  # noqa: F401, E402
@@ -39,10 +39,9 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-# --- Inject DATABASE_URL from our Settings ---
-# This ensures the .env file is the single source of truth.
+# --- Inject normalized PostgreSQL DATABASE_URL from our Settings ---
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 
 # --- Target metadata for autogenerate ---

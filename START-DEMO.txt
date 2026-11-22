@@ -14,8 +14,8 @@ Terminal 2 - Frontend (React + Vite):
 Open http://localhost:5173 in your browser.
 
 Notes:
-- The backend defaults to a local SQLite database at backend/cognicode.db and
-  persists vector memory at backend/data/chroma.
+- The backend connects to the PostgreSQL database configured in backend/.env
+  (Supabase PostgreSQL) and persists vector memory at backend/data/chroma.
 - AI tutoring is configured via backend/.env (LLM_PROVIDER=groq and LLM_API_KEY).
 - On /login, you can sign in with a registered Student or Instructor account,
   or use the one-click "Student demo" and "Instructor demo" buttons.

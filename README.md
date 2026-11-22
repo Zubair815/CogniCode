@@ -37,7 +37,7 @@ Developed as a Final Year Design Project (FYDP) at the Faculty of Computing and 
 | Multi-Agent Orchestration | LangGraph (`StateGraph`) |
 | LLM Providers | Groq Cloud (`openai/gpt-oss-20b`), Claude API, Ollama (`llama3.2`) |
 | Code Analysis | Tree-sitter (`tree-sitter`, `tree-sitter-python`) |
-| Databases | SQLite (default local) / PostgreSQL (production), ChromaDB (vector store) |
+| Databases | PostgreSQL (Supabase), ChromaDB (vector store) |
 | Authentication | JWT (`python-jose`), bcrypt (`passlib`) |
 | Real-Time Chat | FastAPI WebSockets (`/ws/chat/{session_id}`) |
 | PDF Reporting | ReportLab |
@@ -111,7 +111,7 @@ Copy `.env.example` to `backend/.env` and set your `LLM_API_KEY` and `JWT_SECRET
 LLM_PROVIDER=groq
 LLM_API_KEY=your_groq_api_key_here
 GROQ_MODEL=openai/gpt-oss-20b
-DATABASE_URL=sqlite:///./cognicode.db
+DATABASE_URL=postgresql://user:password@localhost:5432/cognicode
 CHROMA_PERSIST_DIR=./data/chroma
 JWT_SECRET=replace_with_a_long_random_secret
 JWT_ALGORITHM=HS256
