@@ -80,7 +80,7 @@ if (arr[mid] > target) high = mid - 1;`,
     submitted && currentQ.options.find((o) => o.id === selectedOption)?.correct;
 
   return (
-    <AppLayout activeCds={32}>
+    <AppLayout activeCds={0}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-8 space-y-6">
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-fg">

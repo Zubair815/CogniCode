@@ -33,12 +33,12 @@ def calculate_session_signals(session: Session, db: DBSession) -> CDSSignalBreak
     total_turns = len(interactions)
     if total_turns == 0:
         return CDSSignalBreakdown(
-            solution_frequency=15.0,
-            hint_depth=20.0,
-            retry_count=20.0,
-            time_gap=30.0,
-            debugging_attempts=25.0,
-            quiz_performance=75.0,
+            solution_frequency=0.0,
+            hint_depth=0.0,
+            retry_count=0.0,
+            time_gap=0.0,
+            debugging_attempts=0.0,
+            quiz_performance=0.0,
         )
 
     # 1. Solution request frequency (higher asks -> higher dependency)
@@ -131,24 +131,24 @@ def get_student_cds_aggregate(
 
     if not sessions:
         return CDSScoreResponse(
-            score=32.0,
+            score=0.0,
             band="low",
             breakdown=CDSSignalBreakdown(
-                solution_frequency=22.0,
-                hint_depth=28.0,
-                retry_count=25.0,
-                time_gap=35.0,
-                debugging_attempts=20.0,
-                quiz_performance=74.0,
+                solution_frequency=0.0,
+                hint_depth=0.0,
+                retry_count=0.0,
+                time_gap=0.0,
+                debugging_attempts=0.0,
+                quiz_performance=0.0,
             ),
-            trend="↓ 8 pts this week",
+            trend="No sessions yet",
             total_sessions=0,
             weak_topics=[],
         )
 
     scored_sessions = [s for s in sessions if s.dependency_score is not None]
     if not scored_sessions:
-        avg_score = 32.0
+        avg_score = 0.0
     else:
         avg_score = round(sum(s.dependency_score for s in scored_sessions) / len(scored_sessions), 1)
 
@@ -171,7 +171,15 @@ def get_student_cds_aggregate(
     )
     hint_d = min(
         100.0,
-        round(sum((s.max_hint_level or 1) for s in sessions) / max(1, len(sessions)) * 20, 1),
+        round(sum((s.max_hint_level or 0) for s in sessions) / max(1, len(sessions)) * 20, 1),
+    )
+    retry_c = min(
+        100.0,
+        round(sum((s.retry_count or 0) for s in sessions) / max(1, len(sessions)) * 20, 1),
+    )
+    debug_c = min(
+        100.0,
+        round(sum((s.debugging_attempts or 0) for s in sessions) / max(1, len(sessions)) * 20, 1),
     )
 
     return CDSScoreResponse(
@@ -180,12 +188,12 @@ def get_student_cds_aggregate(
         breakdown=CDSSignalBreakdown(
             solution_frequency=sol_freq,
             hint_depth=hint_d,
-            retry_count=35.0,
-            time_gap=40.0,
-            debugging_attempts=30.0,
-            quiz_performance=74.0,
+            retry_count=retry_c,
+            time_gap=0.0 if avg_score == 0.0 else 25.0,
+            debugging_attempts=debug_c,
+            quiz_performance=0.0 if avg_score == 0.0 else 75.0,
         ),
-        trend="↓ 8 pts this week" if avg_score <= 40 else "Requires review",
+        trend=f"{len(sessions)} session{'s' if len(sessions) != 1 else ''} recorded",
         total_sessions=len(sessions),
         weak_topics=list(set(weak_topics))[:3],
     )

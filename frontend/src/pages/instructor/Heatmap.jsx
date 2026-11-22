@@ -5,32 +5,27 @@ import AppLayout from "../../components/layout/AppLayout.jsx";
 import Badge from "../../components/ui/Badge.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
 import { ROUTES } from "../../constants/routes.js";
 import { instructorService } from "../../services/instructorService.js";
 
 export default function Heatmap() {
   const navigate = useNavigate();
-
-  const [topics, setTopics] = useState([
-    { name: "Recursion", quiz: "41%", hint: 3.7, highDep: "46%", status: "critical" },
-    { name: "Linked Lists", quiz: "63%", hint: 2.3, highDep: "22%", status: "moderate" },
-    { name: "Binary Trees", quiz: "58%", hint: 2.8, highDep: "28%", status: "moderate" },
-    { name: "Sorting", quiz: "79%", hint: 1.4, highDep: "8%", status: "healthy" },
-    { name: "Graphs (DFS/BFS)", quiz: "38%", hint: 3.9, highDep: "52%", status: "critical" },
-    { name: "Stacks & Queues", quiz: "82%", hint: 1.2, highDep: "6%", status: "healthy" },
-  ]);
+  const [topics, setTopics] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     async function loadHeatmap() {
+      setLoading(true);
       try {
         const data = await instructorService.getTopicHeatmap();
-        if (active && data && data.length > 0) {
+        if (active && Array.isArray(data)) {
           const mapped = data.map((t) => ({
             name: t.topic,
-            quiz: "65%",
-            hint: (t.average_cds / 20.0).toFixed(1),
-            highDep: `${Math.round(t.solution_ratio * 100)}%`,
+            studentCount: t.student_count || 0,
+            hint: ((t.average_cds || 0) / 20.0).toFixed(1),
+            highDep: `${Math.round((t.solution_ratio || 0) * 100)}%`,
             status:
               t.risk_band === "high"
                 ? "critical"
@@ -41,7 +36,9 @@ export default function Heatmap() {
           setTopics(mapped);
         }
       } catch {
-        // Keep default heatmap matrix
+        if (active) setTopics([]);
+      } finally {
+        if (active) setLoading(false);
       }
     }
     loadHeatmap();
@@ -49,29 +46,6 @@ export default function Heatmap() {
       active = false;
     };
   }, []);
-
-  const students = [
-    {
-      name: "Hamza Tariq",
-      scores: ["Critical", "Moderate", "Critical", "Healthy", "Critical", "Healthy"],
-    },
-    {
-      name: "Kiran Shafiq",
-      scores: ["Critical", "Moderate", "Moderate", "Healthy", "Critical", "Healthy"],
-    },
-    {
-      name: "Omar Yusuf",
-      scores: ["Moderate", "Moderate", "Moderate", "Healthy", "Moderate", "Healthy"],
-    },
-    {
-      name: "Aiman Sajid",
-      scores: ["Moderate", "Healthy", "Moderate", "Healthy", "Moderate", "Healthy"],
-    },
-    {
-      name: "Bilal Ahmad",
-      scores: ["Healthy", "Healthy", "Healthy", "Healthy", "Moderate", "Healthy"],
-    },
-  ];
 
   const statusTone = (status) => {
     const s = String(status).toLowerCase();
@@ -100,76 +74,55 @@ export default function Heatmap() {
             Topic heatmap
           </h1>
           <span className="text-xs text-fg-muted">
-            CS201 · Data Structures & Algorithms · Fall 2026
+            Enrolled student sessions
           </span>
         </div>
 
         {/* Topic aggregate table */}
         <Card title="By topic" padding="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
-                <tr>
-                  <th className="px-3.5 py-3 sm:px-5 font-medium">Topic</th>
-                  <th className="px-3 py-3 sm:px-4 font-medium">Quiz avg</th>
-                  <th className="px-3 py-3 sm:px-4 font-medium">Avg hint depth</th>
-                  <th className="px-3 py-3 sm:px-4 font-medium">High dependency</th>
-                  <th className="px-3.5 py-3 sm:px-5 font-medium">Band</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {topics.map((t) => (
-                  <tr key={t.name} className="hover:bg-hover transition-colors whitespace-nowrap">
-                    <td className="px-3.5 py-3 sm:px-5 sm:py-3.5 font-medium text-fg">{t.name}</td>
-                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">{t.quiz}</td>
-                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">
-                      {t.hint} / 5.0
-                    </td>
-                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono font-medium text-fg">
-                      {t.highDep}
-                    </td>
-                    <td className="px-3.5 py-3 sm:px-5 sm:py-3.5">
-                      <Badge tone={statusTone(t.status)}>
-                        {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
-                      </Badge>
-                    </td>
+          {loading ? (
+            <div className="px-5 py-8 text-center text-sm text-fg-secondary">
+              Loading topic telemetry…
+            </div>
+          ) : topics.length === 0 ? (
+            <EmptyState
+              title="No topic telemetry yet"
+              description="Topic dependency metrics appear once students enrolled in your courses begin tutoring sessions."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
+                  <tr>
+                    <th className="px-3.5 py-3 sm:px-5 font-medium">Topic</th>
+                    <th className="px-3 py-3 sm:px-4 font-medium">Students</th>
+                    <th className="px-3 py-3 sm:px-4 font-medium">Avg hint depth</th>
+                    <th className="px-3 py-3 sm:px-4 font-medium">Solution asks</th>
+                    <th className="px-3.5 py-3 sm:px-5 font-medium">Band</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Per-student matrix */}
-        <Card title="By student" padding="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
-                <tr>
-                  <th className="px-3.5 py-3 sm:px-5 font-medium">Student</th>
+                </thead>
+                <tbody className="divide-y divide-line-subtle">
                   {topics.map((t) => (
-                    <th key={t.name} className="px-2.5 py-3 sm:px-3 text-center font-medium">
-                      {t.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {students.map((s) => (
-                  <tr key={s.name} className="hover:bg-hover transition-colors">
-                    <td className="px-3.5 py-3 sm:px-5 font-medium text-fg whitespace-nowrap">
-                      {s.name}
-                    </td>
-                    {s.scores.map((score, sIdx) => (
-                      <td key={sIdx} className="px-2.5 py-3 sm:px-3 text-center whitespace-nowrap">
-                        <Badge tone={statusTone(score)}>{score}</Badge>
+                    <tr key={t.name} className="hover:bg-hover transition-colors whitespace-nowrap">
+                      <td className="px-3.5 py-3 sm:px-5 sm:py-3.5 font-medium text-fg">{t.name}</td>
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">{t.studentCount}</td>
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">
+                        {t.hint} / 5.0
                       </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono font-medium text-fg">
+                        {t.highDep}
+                      </td>
+                      <td className="px-3.5 py-3 sm:px-5 sm:py-3.5">
+                        <Badge tone={statusTone(t.status)}>
+                          {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
     </AppLayout>

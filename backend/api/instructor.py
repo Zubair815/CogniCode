@@ -163,6 +163,39 @@ def create_course(
     )
 
 
+@router.get(
+    "/student/courses",
+    response_model=list[CourseResponse],
+    summary="List courses the authenticated student is enrolled in",
+)
+def list_student_courses(
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+) -> list[CourseResponse]:
+    all_courses = (
+        db.query(InstructorCourse)
+        .order_by(InstructorCourse.created_at.desc())
+        .all()
+    )
+    user_str = str(current_user.id)
+    result = []
+    for c in all_courses:
+        enrolled = list(c.enrolled_students or [])
+        if user_str in enrolled:
+            result.append(
+                CourseResponse(
+                    id=c.id,
+                    instructor_id=c.instructor_id,
+                    course_name=c.course_name,
+                    course_code=c.course_code,
+                    description=c.description,
+                    enrolled_count=len(enrolled),
+                    created_at=c.created_at,
+                )
+            )
+    return result
+
+
 @router.post(
     "/join-course",
     response_model=JoinCourseResponse,
@@ -220,12 +253,10 @@ def get_cohort_analytics(
             except ValueError:
                 pass
 
-    # If no courses yet, fallback to all students in system for demo/development
+    # Only include students actually enrolled in this instructor's courses
     students = []
     if enrolled_ids:
         students = db.query(User).filter(User.id.in_(enrolled_ids)).all()
-    else:
-        students = db.query(User).filter(User.role == "student").all()
 
     total_students = len(students)
     if total_students == 0:
@@ -268,19 +299,18 @@ def get_cohort_analytics(
         max_h = max([max(sess.hint_levels_used or [0]) for sess in sessions], default=0)
         sol_asks = sum((sess.solution_requests or 0) for sess in sessions)
 
-        if band == "high" or score >= 65.0:
-            high_risk.append(
-                HighRiskStudentSummary(
-                    student_id=s.id,
-                    name=s.name,
-                    email=s.email,
-                    cds_score=score,
-                    risk_band=band,
-                    topics_struggling=list(set(struggling_topics))[:3],
-                    solution_requests=sol_asks,
-                    max_hint_level=max_h,
-                )
+        high_risk.append(
+            HighRiskStudentSummary(
+                student_id=s.id,
+                name=s.name,
+                email=s.email,
+                cds_score=score,
+                risk_band=band,
+                topics_struggling=list(set(struggling_topics))[:3],
+                solution_requests=sol_asks,
+                max_hint_level=max_h,
             )
+        )
 
     avg_score = round(sum(scores) / max(1, len(scores)), 1)
     high_risk.sort(key=lambda x: x.cds_score, reverse=True)
@@ -395,44 +425,33 @@ def get_topic_heatmap(
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> list[TopicHeatmapEntry]:
-    sessions = db.query(Session).all()
+    courses = db.query(InstructorCourse).filter(InstructorCourse.instructor_id == current_user.id).all()
+    enrolled_ids = set()
+    for c in courses:
+        for sid in (c.enrolled_students or []):
+            try:
+                enrolled_ids.add(UUID(sid))
+            except ValueError:
+                pass
+
+    if not enrolled_ids:
+        return []
+
+    sessions = db.query(Session).filter(Session.student_id.in_(enrolled_ids)).all()
+    if not sessions:
+        return []
+
     by_topic: dict[str, list[Session]] = {}
     for sess in sessions:
         topic = sess.topic or "General"
         by_topic.setdefault(topic, []).append(sess)
 
-    # Provide default CS foundational topics if few sessions exist
-    default_topics = [
-        "Recursion & Base Cases",
-        "Binary Search Trees",
-        "Dynamic Programming",
-        "Linked List Pointers",
-        "Graph Traversal (BFS/DFS)",
-        "Sorting Algorithms",
-    ]
-    for dt in default_topics:
-        if dt not in by_topic:
-            by_topic[dt] = []
-
     entries = []
     for topic, s_list in by_topic.items():
-        if not s_list:
-            entries.append(
-                TopicHeatmapEntry(
-                    topic=topic,
-                    student_count=0,
-                    average_cds=25.0,
-                    risk_band="low",
-                    high_risk_count=0,
-                    solution_ratio=0.1,
-                )
-            )
-            continue
-
-        scores = [s.dependency_score for s in s_list]
+        scores = [s.dependency_score or 0.0 for s in s_list]
         avg_score = round(sum(scores) / len(scores), 1)
-        high_risk_cnt = sum(1 for s in s_list if s.dependency_score >= 71.0)
-        total_sol_reqs = sum(s.solution_requests for s in s_list)
+        high_risk_cnt = sum(1 for s in s_list if (s.dependency_score or 0.0) >= 71.0)
+        total_sol_reqs = sum((s.solution_requests or 0) for s in s_list)
         sol_ratio = round(min(1.0, total_sol_reqs / max(1, len(s_list) * 3)), 2)
 
         band = "low"

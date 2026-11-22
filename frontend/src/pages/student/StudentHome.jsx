@@ -1,38 +1,63 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
 import StartSessionModal from "../../components/chat/StartSessionModal.jsx";
 import { chatRoute } from "../../constants/routes.js";
+import { chatService } from "../../services/chatService.js";
 
 export default function StudentHome() {
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
+  const [sessions, setSessions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    chatService
+      .listMySessions()
+      .then((data) => {
+        if (active) setSessions(data?.sessions || []);
+      })
+      .catch(() => {
+        if (active) setSessions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const countMatching = (keywords) => {
+    if (!sessions.length) return 0;
+    const matched = sessions.filter((s) =>
+      keywords.some((kw) => (s.topic || "").toLowerCase().includes(kw))
+    ).length;
+    return Math.min(100, matched * 25);
+  };
 
   const tracks = [
     {
       title: "Data Structures",
       level: "Intermediate",
-      progress: 68,
+      progress: countMatching(["tree", "heap", "graph", "list", "stack", "queue"]),
       topics: ["Trees", "Heaps", "Graphs"],
     },
     {
       title: "Algorithms & Complexity",
       level: "Advanced",
-      progress: 42,
+      progress: countMatching(["dynamic", "greedy", "backtrack", "recursion", "sort", "search"]),
       topics: ["Dynamic Programming", "Greedy", "Backtracking"],
     },
     {
       title: "Systems & Memory",
       level: "Introductory",
-      progress: 15,
+      progress: countMatching(["pointer", "memory", "concurrency", "system"]),
       topics: ["Pointers", "Memory Allocation", "Concurrency"],
     },
   ];
 
   return (
-    <AppLayout activeCds={32}>
+    <AppLayout activeCds={0}>
       <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <h1 className="text-2xl font-semibold tracking-tight text-fg">

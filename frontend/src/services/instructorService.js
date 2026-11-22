@@ -13,6 +13,11 @@ export const instructorService = {
     return data;
   },
 
+  async listStudentCourses(config = {}) {
+    const { data } = await api.get("/instructor/student/courses", config);
+    return data;
+  },
+
   async createCourse(courseData) {
     const { data } = await api.post("/instructor/courses", courseData);
     return data;

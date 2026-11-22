@@ -3,6 +3,7 @@ import AppLayout from "../../components/layout/AppLayout.jsx";
 import Alert from "../../components/ui/Alert.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
+import EmptyState from "../../components/ui/EmptyState.jsx";
 import Input from "../../components/ui/Input.jsx";
 import Textarea from "../../components/ui/Textarea.jsx";
 import { instructorService } from "../../services/instructorService.js";
@@ -12,43 +13,16 @@ export default function Reflections() {
   const [takeaway, setTakeaway] = useState("");
   const [mistake, setMistake] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
-
-  const [reflections, setReflections] = useState([
-    {
-      id: "ref-1",
-      topic: "Recursion & Call Stack",
-      date: "Nov 17, 2026",
-      takeaway:
-        "The base case must precede recursive calls, and every call creates an activation record on the stack.",
-      mistakeToAvoid:
-        "Omitting the return keyword when propagating recursive return values back up the call chain.",
-    },
-    {
-      id: "ref-2",
-      topic: "Binary Search Trees",
-      date: "Nov 15, 2026",
-      takeaway:
-        "Inorder traversal of a valid BST yields values in non-decreasing sorted order.",
-      mistakeToAvoid:
-        "Only checking immediate child pointers rather than enforcing min/max bounds on subtree descendants.",
-    },
-    {
-      id: "ref-3",
-      topic: "Linked List Reversal",
-      date: "Nov 12, 2026",
-      takeaway:
-        "Three-pointer iteration (prev, curr, next) redirects nodes without losing the reference to the remaining list.",
-      mistakeToAvoid:
-        "Overwriting curr.next before saving the original next pointer in a temporary variable.",
-    },
-  ]);
+  const [reflections, setReflections] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     async function fetchReflections() {
+      setLoading(true);
       try {
         const data = await instructorService.getStudentReflections();
-        if (active && data && data.length > 0) {
+        if (active && Array.isArray(data)) {
           const mapped = data.map((r) => ({
             id: r.id,
             topic: r.topic || "Computer Science",
@@ -59,7 +33,9 @@ export default function Reflections() {
           setReflections(mapped);
         }
       } catch {
-        // Keep default sample reflections
+        if (active) setReflections([]);
+      } finally {
+        if (active) setLoading(false);
       }
     }
     fetchReflections();
@@ -89,7 +65,7 @@ export default function Reflections() {
   };
 
   return (
-    <AppLayout activeCds={32}>
+    <AppLayout activeCds={0}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-8 space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">
           Reflections
@@ -141,27 +117,38 @@ export default function Reflections() {
         </Card>
 
         <Card title="Past reflections" padding="p-0">
-          <div className="divide-y divide-line-subtle">
-            {reflections.map((item) => (
-              <div key={item.id} className="p-5 space-y-2">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-fg">{item.topic}</h3>
-                  <span className="text-xs text-fg-muted">{item.date}</span>
-                </div>
+          {loading ? (
+            <div className="px-5 py-8 text-center text-sm text-fg-secondary">
+              Loading reflections…
+            </div>
+          ) : reflections.length === 0 ? (
+            <EmptyState
+              title="No reflections yet"
+              description="Record what you learned after completing a tutoring session."
+            />
+          ) : (
+            <div className="divide-y divide-line-subtle">
+              {reflections.map((item) => (
+                <div key={item.id} className="p-5 space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-fg">{item.topic}</h3>
+                    <span className="text-xs text-fg-muted">{item.date}</span>
+                  </div>
 
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <span className="font-medium text-fg">Takeaway: </span>
-                    <span className="text-fg-secondary">{item.takeaway}</span>
-                  </p>
-                  <p>
-                    <span className="font-medium text-fg">Avoid: </span>
-                    <span className="text-fg-secondary">{item.mistakeToAvoid}</span>
-                  </p>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <span className="font-medium text-fg">Takeaway: </span>
+                      <span className="text-fg-secondary">{item.takeaway}</span>
+                    </p>
+                    <p>
+                      <span className="font-medium text-fg">Avoid: </span>
+                      <span className="text-fg-secondary">{item.mistakeToAvoid}</span>
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </AppLayout>

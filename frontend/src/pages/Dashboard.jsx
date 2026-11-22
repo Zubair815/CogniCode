@@ -34,16 +34,16 @@ export default function Dashboard({ role }) {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [cdsData, setCdsData] = useState({
-    score: 32,
+    score: 0,
     band: "low",
-    trend: "−8 pts this week",
+    trend: "No sessions yet",
     breakdown: {
-      solution_frequency: 22,
-      hint_depth: 28,
-      retry_count: 72,
-      time_gap: 65,
-      debugging_attempts: 78,
-      quiz_performance: 74,
+      solution_frequency: 0,
+      hint_depth: 0,
+      retry_count: 0,
+      time_gap: 0,
+      debugging_attempts: 0,
+      quiz_performance: 0,
     },
     weak_topics: [],
   });
@@ -101,37 +101,44 @@ export default function Dashboard({ role }) {
   }
 
   const openSession = (id) => navigate(chatRoute(id));
+  const hasSessions = sessions.length > 0;
+  const avgHintLevel = hasSessions
+    ? ((cdsData.breakdown?.hint_depth || 0) / 20).toFixed(1)
+    : "0.0";
+  const quizAvgLabel = hasSessions
+    ? `${Math.round(cdsData.breakdown?.quiz_performance || 0)}%`
+    : "—";
 
   const cognitiveFactors = [
     {
       name: "Direct solution requests",
-      value: cdsData.breakdown?.solution_frequency ?? 22,
-      band: cdsData.score > 70 ? "High" : "Low",
+      value: cdsData.breakdown?.solution_frequency ?? 0,
+      band: !hasSessions ? "0%" : cdsData.score > 70 ? "High" : "Low",
     },
     {
       name: "Average hint depth",
-      value: cdsData.breakdown?.hint_depth ?? 28,
-      band: cdsData.score > 70 ? "Level 4–5" : "Level 1–2",
+      value: cdsData.breakdown?.hint_depth ?? 0,
+      band: !hasSessions ? "Level 0" : cdsData.score > 70 ? "Level 4–5" : "Level 1–2",
     },
     {
       name: "Retry persistence",
-      value: cdsData.breakdown?.retry_count ?? 72,
-      band: "72%",
+      value: cdsData.breakdown?.retry_count ?? 0,
+      band: `${Math.round(cdsData.breakdown?.retry_count ?? 0)}%`,
     },
     {
       name: "Response interval",
-      value: cdsData.breakdown?.time_gap ?? 65,
-      band: "1.5m avg",
+      value: cdsData.breakdown?.time_gap ?? 0,
+      band: `${Math.round(cdsData.breakdown?.time_gap ?? 0)}%`,
     },
     {
       name: "Debugging attempts",
-      value: cdsData.breakdown?.debugging_attempts ?? 78,
-      band: "78%",
+      value: cdsData.breakdown?.debugging_attempts ?? 0,
+      band: `${Math.round(cdsData.breakdown?.debugging_attempts ?? 0)}%`,
     },
     {
       name: "Concept check accuracy",
-      value: cdsData.breakdown?.quiz_performance ?? 74,
-      band: "74%",
+      value: cdsData.breakdown?.quiz_performance ?? 0,
+      band: `${Math.round(cdsData.breakdown?.quiz_performance ?? 0)}%`,
     },
   ];
 
@@ -172,41 +179,47 @@ export default function Dashboard({ role }) {
             <div className="mt-1 text-2xl font-semibold text-fg">
               {cdsData.score}
             </div>
-            <div className="mt-1 text-xs text-success">{cdsData.trend}</div>
+            <div className="mt-1 text-xs text-fg-muted">{cdsData.trend}</div>
           </div>
 
           <div className="rounded-xl border border-line-subtle bg-canvas p-4">
             <div className="text-xs text-fg-secondary">Average hint level</div>
-            <div className="mt-1 text-2xl font-semibold text-fg">1.4</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">{avgHintLevel}</div>
             <div className="mt-1 text-xs text-fg-muted">Scale 1–5</div>
           </div>
 
           <div className="rounded-xl border border-line-subtle bg-canvas p-4">
             <div className="text-xs text-fg-secondary">Sessions</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
-              {sessions.length || 12}
+              {sessions.length}
             </div>
-            <div className="mt-1 text-xs text-fg-muted">+3 this week</div>
+            <div className="mt-1 text-xs text-fg-muted">
+              {hasSessions ? "Total sessions" : "No sessions yet"}
+            </div>
           </div>
 
           <div className="rounded-xl border border-line-subtle bg-canvas p-4">
             <div className="text-xs text-fg-secondary">Quiz average</div>
-            <div className="mt-1 text-2xl font-semibold text-fg">74%</div>
-            <div className="mt-1 text-xs text-success">+12% this week</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">{quizAvgLabel}</div>
+            <div className="mt-1 text-xs text-fg-muted">
+              {hasSessions ? "Concept checks" : "No checks yet"}
+            </div>
           </div>
         </div>
 
-        {/* Focus notice */}
-        <Alert
-          tone="warning"
-          title="Focus area: Recursion base cases & pointer updates"
-          action={{
-            label: "Practice",
-            onClick: () => setModalOpen(true),
-          }}
-        >
-          Recent sessions show higher hint depth on recursive termination conditions and linked list pointer operations.
-        </Alert>
+        {/* Focus notice — only shown when weak topics actually exist */}
+        {cdsData.weak_topics && cdsData.weak_topics.length > 0 && (
+          <Alert
+            tone="warning"
+            title={`Focus area: ${cdsData.weak_topics.join(", ")}`}
+            action={{
+              label: "Practice",
+              onClick: () => setModalOpen(true),
+            }}
+          >
+            Recent sessions show higher dependency on {cdsData.weak_topics.join(", ")}.
+          </Alert>
+        )}
 
         {/* Recent tutoring sessions */}
         <Card title="Recent sessions" padding="p-0">
@@ -265,7 +278,7 @@ export default function Dashboard({ role }) {
                         CDS{" "}
                         {typeof s.dependency_score === "number"
                           ? s.dependency_score.toFixed(0)
-                          : "32"}
+                          : "0"}
                       </Badge>
                       <ChevronRight
                         size={16}
