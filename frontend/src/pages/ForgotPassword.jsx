@@ -1,19 +1,13 @@
 /**
  * ForgotPassword page.
- *
  * Route: /forgot-password
- *
- * V1: Simple placeholder form. The backend endpoint always returns
- * a generic success message to prevent user enumeration. Actual
- * email delivery is planned for V2.
- *
- * Created: 10/10/2026
  */
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import AuthLayout from "../components/layout/AuthLayout.jsx";
+import Alert from "../components/ui/Alert.jsx";
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
 import { authService } from "../services/authService.js";
@@ -30,7 +24,7 @@ export default function ForgotPassword() {
     setError("");
 
     if (!email.trim()) {
-      setError("Please enter your email address.");
+      setError("Enter the email address associated with your account.");
       return;
     }
 
@@ -39,45 +33,33 @@ export default function ForgotPassword() {
       await authService.forgotPassword(email.trim());
       setSent(true);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err.message || "Unable to send reset instructions. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthLayout>
-      <div
-        className="text-center mb-6"
-        style={{ animation: "ccFadeUp 0.5s ease both" }}
-      >
-        <h2 className="text-lg md:text-xl font-extrabold tracking-tight">
-          Reset your password
-        </h2>
-        <p className="text-xs md:text-sm text-[color:var(--text-muted)] mt-1">
-          We'll email you a link to reset it.
-        </p>
-      </div>
-
+    <AuthLayout title="Reset your password">
       {sent ? (
-        <div className="text-center space-y-4">
-          <div className="text-4xl">📬</div>
-          <p className="text-sm text-[color:var(--text-muted)]">
-            If an account exists for <strong>{email}</strong>, a reset link
-            has been sent. Please check your inbox and spam folder.
-          </p>
-          <Link
-            to={ROUTES.LOGIN}
-            className="inline-block text-sm text-[color:var(--primary-hi)] font-semibold hover:underline"
-          >
-            ← Back to Sign In
-          </Link>
+        <div className="space-y-4">
+          <Alert tone="success" title="Check your email">
+            If an account exists for <strong className="font-medium text-fg">{email}</strong>, we’ve sent instructions to reset your password.
+          </Alert>
+          <div className="text-center">
+            <Link
+              to={ROUTES.LOGIN}
+              className="text-sm font-medium text-accent-fg hover:underline"
+            >
+              Return to sign in
+            </Link>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           <Input
             id="email"
-            label="Email"
+            label="Email address"
             type="email"
             placeholder="you@university.edu"
             value={email}
@@ -87,22 +69,22 @@ export default function ForgotPassword() {
           />
 
           {error && (
-            <div className="mb-3 px-3 py-2 rounded-lg bg-[color:var(--danger)]/10 border border-[color:var(--danger)]/30 text-xs font-medium text-[color:var(--danger)]">
+            <Alert tone="danger" className="mb-4">
               {error}
-            </div>
+            </Alert>
           )}
 
-          <Button type="submit" fullWidth loading={loading}>
-            {loading ? "Sending…" : "Send Reset Link"}
+          <Button type="submit" fullWidth size="lg" loading={loading}>
+            {loading ? "Sending…" : "Send reset link"}
           </Button>
 
-          <p className="mt-5 text-xs md:text-sm text-center text-[color:var(--text-muted)]">
-            Remembered it?{" "}
+          <p className="mt-5 text-center text-sm text-fg-secondary">
+            Remembered your password?{" "}
             <Link
               to={ROUTES.LOGIN}
-              className="text-[color:var(--primary-hi)] font-semibold hover:underline"
+              className="font-medium text-accent-fg hover:underline"
             >
-              Back to Sign In
+              Back to sign in
             </Link>
           </p>
         </form>

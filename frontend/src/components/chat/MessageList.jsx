@@ -1,33 +1,40 @@
 /**
  * MessageList
  * -----------
- * Scrollable list of messages. Auto-scrolls to bottom on new
- * messages unless the user has manually scrolled up.
- *
- * Props:
- *   messages       — array of { id, role, content, timestamp, intent }
- *   typing         — boolean; renders a typing indicator at the end
- *
- * Created: 10/10/2026
+ * Scrollable conversation viewport centered in a 768px reading column.
  */
 
 import { useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import TypingIndicator from "./TypingIndicator.jsx";
 
-export default function MessageList({ messages = [], typing = false }) {
+function buildStarterPrompts(topic) {
+  const subject = topic || "this problem";
+  return [
+    `What is the main invariant behind ${subject}?`,
+    `Here is my initial approach to ${subject} — what edge case am I missing?`,
+    "Can you give me a progressive hint?",
+    `Walk me through a small input example for ${subject}.`,
+  ];
+}
+
+export default function MessageList({
+  messages = [],
+  typing = false,
+  topic = "",
+  onSelectPrompt,
+  disabled = false,
+}) {
   const containerRef = useRef(null);
   const shouldStickRef = useRef(true);
 
-  // Track whether the user is at (or near) the bottom.
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    shouldStickRef.current = distanceFromBottom < 80;
+    shouldStickRef.current = distanceFromBottom < 96;
   };
 
-  // Auto-scroll when messages or typing state change.
   useEffect(() => {
     if (!shouldStickRef.current) return;
     const el = containerRef.current;
@@ -35,18 +42,30 @@ export default function MessageList({ messages = [], typing = false }) {
     el.scrollTop = el.scrollHeight;
   }, [messages.length, typing]);
 
-  // Empty state
   if (messages.length === 0 && !typing) {
+    const starters = buildStarterPrompts(topic);
     return (
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <div className="text-4xl mb-3">💬</div>
-          <p className="text-sm font-semibold text-[color:var(--text)]">
-            Ask your first question
-          </p>
-          <p className="text-xs text-[color:var(--text-muted)] mt-1">
-            Describe what you've tried, or ask about a concept. I'll guide you.
-          </p>
+      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8">
+        <div className="w-full max-w-content">
+          <h2 className="text-center text-xl font-semibold tracking-tight text-fg sm:text-2xl">
+            {topic || "What are you working on?"}
+          </h2>
+
+          {onSelectPrompt && (
+            <div className="mx-auto mt-6 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
+              {starters.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onSelectPrompt(prompt)}
+                  className="rounded-xl border border-line-subtle bg-canvas px-3.5 py-3 text-left text-sm text-fg-secondary transition-colors duration-fast hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -56,20 +75,21 @@ export default function MessageList({ messages = [], typing = false }) {
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5 space-y-3"
+      className="flex-1 overflow-y-auto"
     >
-      {messages.map((m) => (
-        <MessageBubble
-          key={m.id}
-          role={m.role}
-          content={m.content}
-          timestamp={m.timestamp}
-          intent={m.intent}
-        />
-      ))}
-      {typing && <TypingIndicator />}
-      {/* Bottom padding so last message isn't glued to input */}
-      <div className="h-1" />
+      <div className="mx-auto w-full max-w-content px-4 py-6 md:px-6 space-y-6">
+        {messages.map((m) => (
+          <MessageBubble
+            key={m.id}
+            role={m.role}
+            content={m.content}
+            timestamp={m.timestamp}
+            intent={m.intent}
+          />
+        ))}
+        {typing && <TypingIndicator />}
+        <div className="h-2" />
+      </div>
     </div>
   );
 }

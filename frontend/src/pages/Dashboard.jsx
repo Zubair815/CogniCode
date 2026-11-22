@@ -1,31 +1,22 @@
 /**
- * Dashboard — Cognitive Dependency and Session View.
- * Redesigned to match the Figma Prototype (#sdash & #idash).
+ * Dashboard — Student progress & session history.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Plus,
-  RefreshCw,
-  TrendingDown,
-  Sparkles,
-  AlertTriangle,
-  ChevronRight,
-  BookOpen,
-  Clock,
-  Target,
-} from "lucide-react";
+import { ChevronRight, Plus, RefreshCw } from "lucide-react";
 import axios from "axios";
 
 import AppLayout from "../components/layout/AppLayout.jsx";
-import Button from "../components/ui/Button.jsx";
+import Alert from "../components/ui/Alert.jsx";
 import Badge from "../components/ui/Badge.jsx";
+import Button from "../components/ui/Button.jsx";
+import Card from "../components/ui/Card.jsx";
+import EmptyState from "../components/ui/EmptyState.jsx";
 import StartSessionModal from "../components/chat/StartSessionModal.jsx";
 import InstructorDashboard from "./instructor/InstructorDashboard.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
 import { chatService } from "../services/chatService.js";
-import { ROUTES, chatRoute } from "../constants/routes.js";
+import { chatRoute } from "../constants/routes.js";
 
 function isCancel(err) {
   return (
@@ -37,7 +28,6 @@ function isCancel(err) {
 
 export default function Dashboard({ role }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -46,7 +36,7 @@ export default function Dashboard({ role }) {
   const [cdsData, setCdsData] = useState({
     score: 32,
     band: "low",
-    trend: "↓ 8 pts this week",
+    trend: "−8 pts this week",
     breakdown: {
       solution_frequency: 22,
       hint_depth: 28,
@@ -81,11 +71,11 @@ export default function Dashboard({ role }) {
         });
         if (cds) setCdsData(cds);
       } catch {
-        // Fallback to baseline
+        // Keep baseline CDS summary if endpoint is empty
       }
     } catch (err) {
       if (isCancel(err)) return;
-      setLoadError(err.message || "Could not load sessions.");
+      setLoadError(err.message || "Unable to load sessions. Check your connection and try again.");
       setSessions([]);
     } finally {
       setLoadingSessions(false);
@@ -93,11 +83,14 @@ export default function Dashboard({ role }) {
   }, [isStudent]);
 
   useEffect(() => {
-    if (!isStudent) return;
-    loadSessions();
+    if (!isStudent) return undefined;
+    const initialTimer = setTimeout(() => {
+      loadSessions();
+    }, 0);
     const onFocus = () => loadSessions();
     window.addEventListener("focus", onFocus);
     return () => {
+      clearTimeout(initialTimer);
       window.removeEventListener("focus", onFocus);
       abortRef.current?.abort();
     };
@@ -109,255 +102,203 @@ export default function Dashboard({ role }) {
 
   const openSession = (id) => navigate(chatRoute(id));
 
-  // 6-Factor Cognitive Breakdown signals
   const cognitiveFactors = [
-    { name: "Direct Solution Frequency", value: cdsData.breakdown?.solution_frequency ?? 22, band: cdsData.score > 70 ? "High" : "Low" },
-    { name: "Average Hint Depth", value: cdsData.breakdown?.hint_depth ?? 28, band: cdsData.score > 70 ? "High (Level 4–5)" : "Low (Level 1–2)" },
-    { name: "Retry & Perseverance Count", value: cdsData.breakdown?.retry_count ?? 72, band: "High Persistence" },
-    { name: "Interaction Thought Time", value: cdsData.breakdown?.time_gap ?? 65, band: "Healthy (1.5m)" },
-    { name: "Code Debugging Attempts", value: cdsData.breakdown?.debugging_attempts ?? 78, band: "Active Tracing" },
-    { name: "Conceptual Check Accuracy", value: cdsData.breakdown?.quiz_performance ?? 74, band: "Verified" },
+    {
+      name: "Direct solution requests",
+      value: cdsData.breakdown?.solution_frequency ?? 22,
+      band: cdsData.score > 70 ? "High" : "Low",
+    },
+    {
+      name: "Average hint depth",
+      value: cdsData.breakdown?.hint_depth ?? 28,
+      band: cdsData.score > 70 ? "Level 4–5" : "Level 1–2",
+    },
+    {
+      name: "Retry persistence",
+      value: cdsData.breakdown?.retry_count ?? 72,
+      band: "72%",
+    },
+    {
+      name: "Response interval",
+      value: cdsData.breakdown?.time_gap ?? 65,
+      band: "1.5m avg",
+    },
+    {
+      name: "Debugging attempts",
+      value: cdsData.breakdown?.debugging_attempts ?? 78,
+      band: "78%",
+    },
+    {
+      name: "Concept check accuracy",
+      value: cdsData.breakdown?.quiz_performance ?? 74,
+      band: "74%",
+    },
   ];
 
   return (
     <AppLayout activeCds={cdsData.score}>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
-                  cdsData.score > 70
-                    ? "bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
-                    : cdsData.score > 40
-                    ? "bg-[color:var(--warning)]/10 text-[color:var(--warning)]"
-                    : "bg-[color:var(--success)]/10 text-[color:var(--success)]"
-                }`}
-              >
-                {cdsData.band.toUpperCase()} DEPENDENCY (CDS {cdsData.score})
-              </span>
-              <span className="text-xs text-[color:var(--text-muted)]">
-                Welcome back, {user?.name || "Student"}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Cognitive Learning Dashboard
-            </h1>
-          </div>
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">
+            Dashboard
+          </h1>
+
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
+              size="md"
               onClick={loadSessions}
               disabled={loadingSessions}
-              className="text-xs"
             >
-              <RefreshCw size={14} className={loadingSessions ? "animate-spin mr-1.5" : "mr-1.5"} />
-              Refresh
+              <RefreshCw
+                size={14}
+                className={loadingSessions ? "animate-spin" : ""}
+                aria-hidden="true"
+              />
+              <span>Refresh</span>
             </Button>
-            <Button variant="primary" onClick={() => setModalOpen(true)}>
-              <Plus size={16} className="mr-1.5" />
-              Start Socratic Session
+            <Button variant="primary" size="md" onClick={() => setModalOpen(true)}>
+              <Plus size={16} aria-hidden="true" />
+              <span>New session</span>
             </Button>
           </div>
         </div>
 
-        {/* 4 Stat Tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div
-              className={`text-2xl md:text-3xl font-black ${
-                cdsData.score > 70
-                  ? "text-[color:var(--danger)]"
-                  : cdsData.score > 40
-                  ? "text-[color:var(--warning)]"
-                  : "text-[color:var(--success)]"
-              }`}
-            >
+        {/* Summary metrics */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Dependency score</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">
               {cdsData.score}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Dependency Score
-            </div>
-            <div className="text-[10px] text-[color:var(--success)] font-bold mt-2 flex items-center">
-              <TrendingDown size={12} className="mr-0.5" /> {cdsData.trend}
-            </div>
+            <div className="mt-1 text-xs text-success">{cdsData.trend}</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--text)]">
-              1.4
-            </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Avg Hint Level
-            </div>
-            <div className="text-[10px] text-[color:var(--success)] font-bold mt-2 flex items-center">
-              <TrendingDown size={12} className="mr-0.5" /> ↓ 0.6 this week
-            </div>
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Average hint level</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">1.4</div>
+            <div className="mt-1 text-xs text-fg-muted">Scale 1–5</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--text)]">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Sessions</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">
               {sessions.length || 12}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Total Sessions
-            </div>
-            <div className="text-[10px] text-[color:var(--text-muted)] font-medium mt-2">
-              +3 this week
-            </div>
+            <div className="mt-1 text-xs text-fg-muted">+3 this week</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--success)]">
-              74%
-            </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Avg Quiz Score
-            </div>
-            <div className="text-[10px] text-[color:var(--success)] font-bold mt-2">
-              ↑ 12% this week
-            </div>
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Quiz average</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">74%</div>
+            <div className="mt-1 text-xs text-success">+12% this week</div>
           </div>
         </div>
 
-        {/* 6-Factor Cognitive Dependency Breakdown */}
-        <div className="p-6 rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg2)] space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-[color:var(--text)]">
-              Cognitive Independence Breakdown
-            </h2>
-            <span className="text-xs text-[color:var(--text-muted)]">
-              Real-time telemetry from interaction patterns
-            </span>
-          </div>
+        {/* Focus notice */}
+        <Alert
+          tone="warning"
+          title="Focus area: Recursion base cases & pointer updates"
+          action={{
+            label: "Practice",
+            onClick: () => setModalOpen(true),
+          }}
+        >
+          Recent sessions show higher hint depth on recursive termination conditions and linked list pointer operations.
+        </Alert>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {cognitiveFactors.map((f, i) => (
-              <div
-                key={i}
-                className="p-3.5 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] space-y-2"
+        {/* Recent tutoring sessions */}
+        <Card title="Recent sessions" padding="p-0">
+          {loadError && (
+            <div className="px-5 pt-3">
+              <Alert
+                tone="danger"
+                action={{ label: "Retry", onClick: loadSessions }}
               >
+                {loadError}
+              </Alert>
+            </div>
+          )}
+
+          {loadingSessions ? (
+            <div className="px-5 py-8 text-center text-sm text-fg-secondary">
+              Loading sessions…
+            </div>
+          ) : sessions.length === 0 ? (
+            <EmptyState
+              title="No sessions yet"
+              action={
+                <Button size="sm" onClick={() => setModalOpen(true)}>
+                  New session
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-line-subtle">
+              {sessions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => openSession(s.id)}
+                    className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors duration-fast hover:bg-hover"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-fg">
+                        {s.topic}
+                      </div>
+                      <div className="mt-0.5 text-xs text-fg-muted">
+                        {new Date(s.started_at).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2.5">
+                      <Badge
+                        tone={
+                          s.dependency_band === "high"
+                            ? "danger"
+                            : s.dependency_band === "moderate"
+                            ? "warning"
+                            : "success"
+                        }
+                      >
+                        CDS{" "}
+                        {typeof s.dependency_score === "number"
+                          ? s.dependency_score.toFixed(0)
+                          : "32"}
+                      </Badge>
+                      <ChevronRight
+                        size={16}
+                        className="text-fg-muted"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        {/* 6-Factor Cognitive Dependency Breakdown (flattened, no nested sub-cards) */}
+        <Card title="Dependency signals">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+            {cognitiveFactors.map((f) => (
+              <div key={f.name} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-[color:var(--text)]">{f.name}</span>
-                  <span className="font-bold text-[color:var(--success)]">{f.band}</span>
+                  <span className="font-medium text-fg">{f.name}</span>
+                  <span className="text-fg-secondary">{f.band}</span>
                 </div>
-                <div className="w-full bg-[color:var(--surface-2)] h-2 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
                   <div
-                    className="h-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--violet)] rounded-full"
+                    className="h-full rounded-full bg-accent"
                     style={{ width: `${f.value}%` }}
                   />
                 </div>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Weak Topics / Focus Areas */}
-        <div className="p-5 rounded-2xl border border-[color:var(--warning)]/30 bg-[color:var(--warning)]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="text-[color:var(--warning)] shrink-0 mt-0.5" />
-            <div>
-              <div className="font-bold text-sm text-[color:var(--text)]">
-                Recommended Focus: Recursion Base Cases & Pointer Management
-              </div>
-              <p className="text-xs text-[color:var(--text-muted)] mt-0.5">
-                Past session logs show higher hint requests on recursive functions and linked list pointer operations.
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setModalOpen(true)}
-            className="shrink-0 self-start sm:self-auto"
-          >
-            Practice Topic
-          </Button>
-        </div>
-
-        {/* Recent Sessions */}
-        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)] overflow-hidden shadow-sm">
-          <div className="p-5 border-b border-[color:var(--border)] flex items-center justify-between">
-            <h2 className="text-base font-bold text-[color:var(--text)]">
-              Recent Tutoring Sessions
-            </h2>
-            <span className="text-xs text-[color:var(--text-muted)]">
-              {sessions.length} recorded
-            </span>
-          </div>
-
-          <div className="p-5">
-            {loadError && (
-              <p className="text-xs text-[color:var(--danger)] mb-3">{loadError}</p>
-            )}
-
-            {loadingSessions ? (
-              <p className="text-sm text-[color:var(--text-muted)] text-center py-6">
-                Loading sessions…
-              </p>
-            ) : sessions.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 rounded-2xl bg-[color:var(--surface)] flex items-center justify-center mx-auto text-[color:var(--primary)] mb-3">
-                  <Target size={24} />
-                </div>
-                <p className="text-sm font-semibold">No tutoring sessions yet</p>
-                <p className="text-xs text-[color:var(--text-muted)] mt-1 max-w-sm mx-auto">
-                  Start your first Socratic session to practice computational problem solving.
-                </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setModalOpen(true)}
-                  className="mt-4"
-                >
-                  <Plus size={14} className="mr-1" /> Start First Session
-                </Button>
-              </div>
-            ) : (
-              <ul className="space-y-2.5">
-                {sessions.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      onClick={() => openSession(s.id)}
-                      className="w-full text-left flex items-center justify-between gap-3 p-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] hover:border-[color:var(--primary)]/40 hover:bg-[color:var(--surface-2)] transition-all group"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold truncate text-[color:var(--text)] group-hover:text-[color:var(--primary)] transition-colors">
-                            {s.topic}
-                          </p>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[color:var(--surface-2)] text-[color:var(--text-muted)] font-mono">
-                            {s.ended_at ? "Completed" : "Active"}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[color:var(--text-muted)] flex items-center gap-1.5">
-                          <Clock size={12} />
-                          {new Date(s.started_at).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <Badge
-                          tone={
-                            s.dependency_band === "high"
-                              ? "danger"
-                              : s.dependency_band === "moderate"
-                              ? "warning"
-                              : "success"
-                          }
-                        >
-                          CDS {typeof s.dependency_score === "number" ? s.dependency_score.toFixed(0) : "32"}
-                        </Badge>
-                        <ChevronRight size={16} className="text-[color:var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        </Card>
       </div>
 
       <StartSessionModal

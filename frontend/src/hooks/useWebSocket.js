@@ -31,8 +31,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getToken } from "../services/api.js";
 
-const WS_BASE_URL =
-  import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
+function resolveWsBaseUrl() {
+  const raw =
+    import.meta.env.VITE_WS_BASE_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "ws://localhost:8000";
+  return raw
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/^https:\/\//i, "wss://")
+    .replace(/^http:\/\//i, "ws://");
+}
+
+const WS_BASE_URL = resolveWsBaseUrl();
 
 const MAX_RECONNECT_DELAY_MS = 10000;
 const BASE_RECONNECT_DELAY_MS = 800;
@@ -56,12 +67,6 @@ export default function useWebSocket({
   const handlersRef = useRef({ onReady, onMessage, onTyping, onError, onEnded });
 
 
-    // Reset error when sessionId changes — prevents stale errors
-  // from a previous session leaking into the new one.
-  useEffect(() => {
-    setLastError(null);
-  }, [sessionId]);
-  
   // Keep handlers fresh without restarting the socket.
   useEffect(() => {
     handlersRef.current = { onReady, onMessage, onTyping, onError, onEnded };
@@ -88,7 +93,7 @@ export default function useWebSocket({
       let socket;
       try {
         socket = new WebSocket(url);
-      } catch (err) {
+      } catch {
         setLastError("Failed to open WebSocket.");
         scheduleReconnect();
         return;
@@ -198,7 +203,6 @@ export default function useWebSocket({
       }
       socketRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   // --- Send a chat message ---

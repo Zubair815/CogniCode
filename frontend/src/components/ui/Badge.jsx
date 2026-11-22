@@ -1,31 +1,25 @@
 /**
- * Badge
- * -----
- * Small pill used for statuses, CDS bands, and intent labels.
- *
- * Props:
- *   tone — "success" | "warning" | "danger" | "info" | "violet" | "neutral"
- *
- * Created: 10/10/2026
- * Author: Abdullah (BSEF23M526)
+ * Badge — compact status label.
+ * Tones: neutral · success · warning · danger · info
+ * ("violet" is accepted for backward compatibility and renders neutral.)
+ * Status should never rely on color alone: always pass readable text.
  */
 
-const TONE_CLASSES = {
-  success: "bg-[color:var(--success)]/15 text-[color:var(--success)]",
-  warning: "bg-[color:var(--warning)]/15 text-[color:var(--warning)]",
-  danger:  "bg-[color:var(--danger)]/15 text-[color:var(--danger)]",
-  info:    "bg-[color:var(--primary)]/15 text-[color:var(--primary-hi)]",
-  violet:  "bg-[#8B5CF6]/15 text-[#A78BFA]",
-  neutral: "bg-[color:var(--surface-2)] text-[color:var(--text-muted)]",
+const TONES = {
+  neutral: "bg-surface text-fg-secondary",
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  danger: "bg-danger-soft text-danger",
+  info: "bg-accent-soft text-accent-fg",
 };
 
 export default function Badge({ children, tone = "neutral", className = "" }) {
-  const toneCls = TONE_CLASSES[tone] || TONE_CLASSES.neutral;
+  const toneCls = TONES[tone] || TONES.neutral;
   return (
     <span
       className={[
-        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full",
-        "text-[11px] font-bold",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5",
+        "text-xs font-medium leading-4",
         toneCls,
         className,
       ].join(" ")}

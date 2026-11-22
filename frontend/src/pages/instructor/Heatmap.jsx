@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Map, AlertCircle, Info, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
+import Badge from "../../components/ui/Badge.jsx";
 import Button from "../../components/ui/Button.jsx";
+import Card from "../../components/ui/Card.jsx";
 import { ROUTES } from "../../constants/routes.js";
 import { instructorService } from "../../services/instructorService.js";
 
@@ -29,12 +31,17 @@ export default function Heatmap() {
             quiz: "65%",
             hint: (t.average_cds / 20.0).toFixed(1),
             highDep: `${Math.round(t.solution_ratio * 100)}%`,
-            status: t.risk_band === "high" ? "critical" : t.risk_band === "moderate" ? "moderate" : "healthy",
+            status:
+              t.risk_band === "high"
+                ? "critical"
+                : t.risk_band === "moderate"
+                ? "moderate"
+                : "healthy",
           }));
           setTopics(mapped);
         }
-      } catch (err) {
-        // Fallback to local default heatmap
+      } catch {
+        // Keep default heatmap matrix
       }
     }
     loadHeatmap();
@@ -44,130 +51,126 @@ export default function Heatmap() {
   }, []);
 
   const students = [
-    { name: "Hamza Tariq", roll: "BSEF23M512", scores: ["Critical", "Moderate", "Critical", "Healthy", "Critical", "Healthy"] },
-    { name: "Kiran Shafiq", roll: "BSEF23M519", scores: ["Critical", "Moderate", "Moderate", "Healthy", "Critical", "Healthy"] },
-    { name: "Omar Yusuf", roll: "BSEF23M531", scores: ["Moderate", "Moderate", "Moderate", "Healthy", "Moderate", "Healthy"] },
-    { name: "Aiman Sajid", roll: "BSEF23M508", scores: ["Moderate", "Healthy", "Moderate", "Healthy", "Moderate", "Healthy"] },
-    { name: "Bilal Ahmad", roll: "BSEF23M544", scores: ["Healthy", "Healthy", "Healthy", "Healthy", "Moderate", "Healthy"] },
+    {
+      name: "Hamza Tariq",
+      scores: ["Critical", "Moderate", "Critical", "Healthy", "Critical", "Healthy"],
+    },
+    {
+      name: "Kiran Shafiq",
+      scores: ["Critical", "Moderate", "Moderate", "Healthy", "Critical", "Healthy"],
+    },
+    {
+      name: "Omar Yusuf",
+      scores: ["Moderate", "Moderate", "Moderate", "Healthy", "Moderate", "Healthy"],
+    },
+    {
+      name: "Aiman Sajid",
+      scores: ["Moderate", "Healthy", "Moderate", "Healthy", "Moderate", "Healthy"],
+    },
+    {
+      name: "Bilal Ahmad",
+      scores: ["Healthy", "Healthy", "Healthy", "Healthy", "Moderate", "Healthy"],
+    },
   ];
 
-  const getHeatStyle = (status) => {
-    if (status === "critical" || status === "Critical") {
-      return "bg-[color:var(--danger)]/20 text-[color:var(--danger)] border-[color:var(--danger)]/30 font-bold";
-    }
-    if (status === "moderate" || status === "Moderate") {
-      return "bg-[color:var(--warning)]/20 text-[color:var(--warning)] border-[color:var(--warning)]/30 font-bold";
-    }
-    return "bg-[color:var(--success)]/20 text-[color:var(--success)] border-[color:var(--success)]/30 font-bold";
+  const statusTone = (status) => {
+    const s = String(status).toLowerCase();
+    if (s === "critical") return "danger";
+    if (s === "moderate") return "warning";
+    return "success";
   };
 
   return (
     <AppLayout activeCds={0}>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(ROUTES.INSTRUCTOR_DASHBOARD)}
-          className="text-xs -ml-2 mb-2"
-        >
-          <ArrowLeft size={14} className="mr-1.5" /> Back to Cohort Dashboard
-        </Button>
-
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Map className="text-[color:var(--primary)]" />
-            Cognitive Dependency Heatmap
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(ROUTES.INSTRUCTOR_DASHBOARD)}
+            className="-ml-2"
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span>Back to cohort</span>
+          </Button>
+        </div>
+
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">
+            Topic heatmap
           </h1>
-          <p className="text-xs md:text-sm text-[color:var(--text-muted)] mt-1">
-            Visual topic-by-topic dependency distribution. Darker cells highlight topics where students rely heavily on Level 4/5 hints without grasping core invariants.
-          </p>
+          <span className="text-xs text-fg-muted">
+            CS201 · Data Structures & Algorithms · Fall 2026
+          </span>
         </div>
 
-        {/* Legend */}
-        <div className="p-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)] flex flex-wrap items-center justify-between gap-4 text-xs">
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="font-semibold text-[color:var(--text)]">Risk Tiers:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[color:var(--success)]" />
-              <span>Low Dependency (CDS 0–40)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[color:var(--warning)]" />
-              <span>Moderate (CDS 41–70)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[color:var(--danger)]" />
-              <span>High Dependency (CDS 71–100)</span>
-            </div>
-          </div>
-          <span className="text-[color:var(--text-muted)]">Course: CS201 Fall 2026</span>
-        </div>
-
-        {/* Topic Aggregate Table */}
-        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)] overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-[color:var(--border)]">
-            <h2 className="text-sm font-bold">Topic Cohort Aggregate Matrix</h2>
-          </div>
+        {/* Topic aggregate table */}
+        <Card title="By topic" padding="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[color:var(--surface)] text-[color:var(--text-muted)] border-b border-[color:var(--border)] uppercase font-semibold">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
                 <tr>
-                  <th className="px-5 py-3">Topic</th>
-                  <th className="px-4 py-3">Quiz Avg</th>
-                  <th className="px-4 py-3">Avg Hint Depth</th>
-                  <th className="px-4 py-3">% High Dependency</th>
-                  <th className="px-5 py-3">Cohort Status</th>
+                  <th className="px-5 py-3 font-medium">Topic</th>
+                  <th className="px-4 py-3 font-medium">Quiz avg</th>
+                  <th className="px-4 py-3 font-medium">Avg hint depth</th>
+                  <th className="px-4 py-3 font-medium">High dependency</th>
+                  <th className="px-5 py-3 font-medium">Band</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[color:var(--border)]">
-                {topics.map((t, idx) => (
-                  <tr key={idx} className="hover:bg-[color:var(--surface)] transition-colors">
-                    <td className="px-5 py-3.5 font-bold text-[color:var(--text)]">{t.name}</td>
-                    <td className="px-4 py-3.5 font-mono">{t.quiz}</td>
-                    <td className="px-4 py-3.5 font-mono">{t.hint} / 5.0</td>
-                    <td className="px-4 py-3.5 font-mono font-bold">{t.highDep}</td>
+              <tbody className="divide-y divide-line-subtle">
+                {topics.map((t) => (
+                  <tr key={t.name} className="hover:bg-hover transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-fg">{t.name}</td>
+                    <td className="px-4 py-3.5 font-mono text-fg-secondary">{t.quiz}</td>
+                    <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                      {t.hint} / 5.0
+                    </td>
+                    <td className="px-4 py-3.5 font-mono font-medium text-fg">
+                      {t.highDep}
+                    </td>
                     <td className="px-5 py-3.5">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] border ${getHeatStyle(t.status)}`}>
-                        {t.status.toUpperCase()}
-                      </span>
+                      <Badge tone={statusTone(t.status)}>
+                        {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
-        {/* Student-by-Topic Heat Grid */}
-        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)] p-5 space-y-4 shadow-sm">
-          <h2 className="text-sm font-bold">Per-Student Topic Dependency Matrix</h2>
+        {/* Per-student matrix */}
+        <Card title="By student" padding="p-0">
           <div className="overflow-x-auto">
-            <div className="min-w-[600px] space-y-2 text-xs">
-              <div className="grid grid-cols-7 gap-2 pb-2 border-b border-[color:var(--border)] font-semibold text-[color:var(--text-muted)]">
-                <div>Student</div>
-                {topics.map((t, i) => (
-                  <div key={i} className="text-center truncate">{t.name}</div>
-                ))}
-              </div>
-
-              {students.map((s, idx) => (
-                <div key={idx} className="grid grid-cols-7 gap-2 items-center py-1.5 border-b border-[color:var(--border)]/50">
-                  <div className="font-bold truncate text-[color:var(--text)]">
-                    {s.name}
-                  </div>
-                  {s.scores.map((score, sIdx) => (
-                    <div
-                      key={sIdx}
-                      className={`py-1.5 px-2 rounded-lg text-center border text-[10px] truncate ${getHeatStyle(score)}`}
-                    >
-                      {score}
-                    </div>
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Student</th>
+                  {topics.map((t) => (
+                    <th key={t.name} className="px-3 py-3 text-center font-medium">
+                      {t.name}
+                    </th>
                   ))}
-                </div>
-              ))}
-            </div>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-subtle">
+                {students.map((s) => (
+                  <tr key={s.name} className="hover:bg-hover transition-colors">
+                    <td className="px-5 py-3 font-medium text-fg whitespace-nowrap">
+                      {s.name}
+                    </td>
+                    {s.scores.map((score, sIdx) => (
+                      <td key={sIdx} className="px-3 py-3 text-center">
+                        <Badge tone={statusTone(score)}>{score}</Badge>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </Card>
       </div>
     </AppLayout>
   );

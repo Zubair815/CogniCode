@@ -15,7 +15,7 @@ Created: 18/11/2026
 
 import logging
 import re
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import tree_sitter
 import tree_sitter_python

@@ -8,13 +8,9 @@ cognitive engagement before unlocking higher-level assistance (Level 3+).
 Created: 18/11/2026
 """
 
-import json
 import logging
-import re
-from typing import Any
 
 from agents.state import AgentState, ConceptCheckQuestion
-from llm import LLMError, get_llm_client
 
 logger = logging.getLogger("cognicode.agents.assessment")
 

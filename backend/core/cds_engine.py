@@ -13,13 +13,12 @@ Bands:
 Created: 18/11/2026
 """
 
-from typing import Any
 from uuid import UUID
 from sqlalchemy.orm import Session as DBSession
 
 from config import get_settings
-from db.models import Interaction, Session, User
-from schemas.cds import CDSSignalBreakdown, CDSScoreResponse, SessionCDSDetailResponse
+from db.models import Interaction, Session
+from schemas.cds import CDSSignalBreakdown, CDSScoreResponse
 
 
 def calculate_session_signals(session: Session, db: DBSession) -> CDSSignalBreakdown:

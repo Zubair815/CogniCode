@@ -11,12 +11,11 @@ Created: 18/11/2026
 """
 
 import logging
-from typing import Any, Optional
 from uuid import UUID
 
 from agents.memory import StudentMemoryAgent
 from db.models import Reflection, Session
-from llm import LLMError, get_llm_client
+from llm import get_llm_client
 
 logger = logging.getLogger("cognicode.agents.reflection")
 

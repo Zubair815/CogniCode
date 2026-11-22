@@ -1,59 +1,41 @@
 /**
  * Button
  * ------
- * Single button component with four visual variants and
- * consistent sizing. Uses CSS variables for theming so the
- * same component works in dark and light mode.
- *
- * Props:
- *   variant  — "primary" | "secondary" | "ghost" | "danger"
- *   size     — "sm" | "md"
- *   loading  — disables the button and shows a spinner
- *   fullWidth— stretches to the parent width
- *
- * Created: 10/10/2026
- * Author: Abdullah (BSEF23M526)
+ * Variants:
+ *   primary   — accent fill; the one main action in a view
+ *   neutral   — solid foreground fill (high-emphasis, non-brand)
+ *   secondary — bordered neutral
+ *   ghost     — transparent until hover
+ *   danger    — destructive action
+ * Sizes: sm (32px) · md (36px) · lg (44px)
  */
 
-const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-all " +
-  "focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
+import Spinner from "./Spinner.jsx";
 
-const sizeClasses = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2.5 text-sm",
+const base =
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium " +
+  "transition-colors duration-fast ease-standard select-none " +
+  "disabled:cursor-not-allowed disabled:opacity-50";
+
+const sizes = {
+  sm: "h-8 px-3 text-sm",
+  md: "h-9 px-3.5 text-sm",
+  lg: "h-11 px-5 text-[15px]",
 };
 
-const variantClasses = {
-  primary:
-    "text-white shadow-glow hover:shadow-glow-lg hover:-translate-y-px",
-  secondary:
-    "border border-[color:var(--border-2)] text-[color:var(--text-muted)] " +
-    "hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)]",
-  ghost:
-    "text-[color:var(--text-muted)] hover:text-[color:var(--text)] " +
-    "border border-[color:var(--border)]",
-  danger:
-    "bg-[color:var(--danger)] text-white hover:opacity-90",
+const variants = {
+  primary: "bg-accent text-accent-on hover:bg-accent-hover",
+  neutral: "bg-primary text-primary-on hover:bg-primary-hover",
+  secondary: "border border-line bg-canvas text-fg hover:bg-hover",
+  ghost: "text-fg-secondary hover:text-fg hover:bg-hover",
+  danger: "bg-danger text-white hover:opacity-90 dark:text-fg-inverse",
 };
 
-
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
+function buttonClasses({ variant = "primary", size = "md", fullWidth = false, className = "" } = {}) {
+  return [base, sizes[size] || sizes.md, variants[variant] || variants.primary, fullWidth ? "w-full" : "", className]
+    .filter(Boolean)
+    .join(" ");
 }
-
 
 export default function Button({
   children,
@@ -66,27 +48,15 @@ export default function Button({
   className = "",
   ...rest
 }) {
-  const classes = [
-    baseClasses,
-    sizeClasses[size] || sizeClasses.md,
-    variantClasses[variant] || variantClasses.primary,
-    fullWidth ? "w-full" : "",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const isPrimary = variant === "primary";
-
   return (
     <button
       type={type}
       disabled={disabled || loading}
-      className={classes}
-      style={isPrimary ? { background: "var(--gradient-primary)" } : undefined}
+      aria-busy={loading || undefined}
+      className={buttonClasses({ variant, size, fullWidth, className })}
       {...rest}
     >
-      {loading && <Spinner />}
+      {loading && <Spinner size={14} />}
       {children}
     </button>
   );

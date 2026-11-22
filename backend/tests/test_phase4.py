@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from agents.code_analysis import CodeAnalysisAgent
 from agents.debugging_coach import DebuggingCoach
-from core.cds_engine import compute_session_score, calculate_session_signals
+from core.cds_engine import compute_session_score
 from db.models import Session, Interaction, User
 import db.models
 from db.session import Base, engine, SessionLocal

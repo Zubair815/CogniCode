@@ -14,7 +14,6 @@ Created: 18/11/2026
 
 import logging
 import re
-from typing import Any
 
 from agents.state import AgentState
 from llm import LLMError, get_llm_client

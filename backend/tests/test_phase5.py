@@ -3,7 +3,6 @@ Unit tests for Phase 5: Long-term Vector Memory, Reflection Agent, and Instructo
 """
 
 import asyncio
-from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
 
@@ -11,7 +10,7 @@ from agents.memory import StudentMemoryAgent
 from agents.reflection import ReflectionAgent
 from agents.graph import tutoring_graph
 from agents.state import new_state
-from db.models import Base, InstructorCourse, Reflection, Session, User
+from db.models import Base, Session, User
 from db.session import SessionLocal, engine
 from vector.chroma_client import ChromaVectorStore
 

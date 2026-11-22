@@ -127,9 +127,7 @@ export default function useChatSession(sessionId) {
       onEnded: handleEnded,
     });
 
-  useEffect(() => {
-    if (lastError) setError(lastError);
-  }, [lastError]);
+  const effectiveError = error || lastError;
 
   const send = useCallback(
     (content) => {
@@ -159,7 +157,7 @@ export default function useChatSession(sessionId) {
       session,
       messages,
       loading,
-      error,
+      error: effectiveError,
       wsStatus: status,
       assistantTyping,
       attemptDetected,
@@ -169,6 +167,6 @@ export default function useChatSession(sessionId) {
       end,
       clearError,
     }),
-    [session, messages, loading, error, status, assistantTyping, attemptDetected, hintLevel, understandingCheckRequired, send, end, clearError]
+    [session, messages, loading, effectiveError, status, assistantTyping, attemptDetected, hintLevel, understandingCheckRequired, send, end, clearError]
   );
 }

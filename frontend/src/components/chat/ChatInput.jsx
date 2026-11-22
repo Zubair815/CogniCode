@@ -1,43 +1,40 @@
 /**
  * ChatInput
  * ---------
- * Textarea + send button. Enter sends; Shift+Enter inserts a
- * newline. Disabled while disconnected.
- *
- * Props:
- *   onSend      — (text) => void
- *   disabled    — boolean
- *   placeholder — string (optional)
- *
- * Created: 10/10/2026
+ * Bottom composer centered in the 768px conversation column.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 export default function ChatInput({
   onSend,
   disabled = false,
-  placeholder = "Ask a question or describe what you've tried…",
+  busy = false,
+  disabledReason = "",
+  placeholder = "Ask a question or paste your code attempt…",
 }) {
   const [value, setValue] = useState("");
   const textareaRef = useRef(null);
 
-  // Auto-grow the textarea up to a max height.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }, [value]);
+
+  const canSend = !disabled && !busy && value.trim().length > 0;
 
   const submit = () => {
     const text = value.trim();
-    if (!text || disabled) return;
+    if (!text || disabled || busy) return;
     onSend(text);
     setValue("");
-    // Re-focus for fast typing
-    textareaRef.current?.focus();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -47,46 +44,68 @@ export default function ChatInput({
     }
   };
 
+  const insertCodeFence = () => {
+    if (disabled) return;
+    const snippet = value ? `${value}\n\`\`\`python\n\n\`\`\`` : "```python\n\n```";
+    setValue(snippet);
+    textareaRef.current?.focus();
+  };
+
   return (
-    <div className="border-t border-[color:var(--border)] bg-[color:var(--bg)] px-4 md:px-6 py-3">
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={1}
+    <div className="shrink-0 bg-canvas px-4 pb-4 pt-2 md:px-6">
+      <div className="mx-auto w-full max-w-content">
+        <div
           className={[
-            "flex-1 resize-none rounded-lg px-3.5 py-2.5 text-sm",
-            "bg-[color:var(--surface-2)] border border-[color:var(--border-2)]",
-            "text-[color:var(--text)] placeholder:text-[color:var(--text-subtle)]",
-            "outline-none focus:border-[color:var(--primary)] transition-colors",
-            disabled ? "opacity-60 cursor-not-allowed" : "",
+            "rounded-3xl border border-line bg-surface px-4 pb-2.5 pt-3 shadow-composer transition-colors duration-fast",
+            "focus-within:border-line-strong focus-within:bg-elevated",
+            disabled ? "opacity-75" : "",
           ].join(" ")}
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={disabled || !value.trim()}
-          aria-label="Send message"
-          className={[
-            "h-10 px-3.5 rounded-lg flex items-center justify-center gap-1.5",
-            "text-sm font-semibold text-white shrink-0",
-            "transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-            !disabled && value.trim() ? "hover:-translate-y-px hover:shadow-glow" : "",
-          ].join(" ")}
-          style={{ background: "var(--gradient-primary)" }}
         >
-          <Send size={15} />
-        </button>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={disabled && disabledReason ? disabledReason : placeholder}
+            disabled={disabled}
+            rows={1}
+            aria-label="Message"
+            className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-fg placeholder:text-fg-muted focus-ring-none disabled:cursor-not-allowed"
+          />
+
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                disabled={disabled || busy}
+                onClick={insertCodeFence}
+                className="rounded-md px-2 py-1 text-xs font-medium text-fg-secondary hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              >
+                Code block
+              </button>
+
+              <button
+                type="button"
+                disabled={disabled || busy}
+                onClick={() => onSend("Can you give me a progressive hint?")}
+                className="rounded-md px-2 py-1 text-xs font-medium text-fg-secondary hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              >
+                Request hint
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSend}
+              aria-label="Send message"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-on transition-opacity duration-fast hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <ArrowUp size={16} strokeWidth={2.25} />
+            </button>
+          </div>
+        </div>
       </div>
-      <p className="mt-1.5 text-[10px] text-[color:var(--text-subtle)] hidden md:block">
-        Press <kbd className="px-1 rounded bg-[color:var(--surface-2)]">Enter</kbd> to send ·{" "}
-        <kbd className="px-1 rounded bg-[color:var(--surface-2)]">Shift</kbd>+
-        <kbd className="px-1 rounded bg-[color:var(--surface-2)]">Enter</kbd> for a new line
-      </p>
     </div>
   );
 }

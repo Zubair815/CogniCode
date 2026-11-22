@@ -39,7 +39,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
 
-    # --- LLM (used later in Phase 3) ---
     # --- LLM ---
     llm_provider: str = "ollama"          # "ollama" | "claude" | "groq"
     llm_api_key: str = ""

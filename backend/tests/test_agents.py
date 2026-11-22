@@ -2,7 +2,6 @@
 Tests for Phase 3 Multi-Agent Tutoring & Hint State Machine.
 """
 
-import pytest
 import asyncio
 from agents.conversation_manager import ConversationManager
 from agents.hint_generator import HintGenerator

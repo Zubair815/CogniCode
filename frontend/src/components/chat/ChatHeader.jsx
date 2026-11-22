@@ -1,56 +1,75 @@
 /**
  * ChatHeader
  * ----------
- * Top bar for the chat page: back button, topic, connection status,
- * and "End Session" button.
- *
- * Props:
- *   topic       — session topic
- *   wsStatus    — "connecting" | "open" | "closed"
- *   onEnd       — () => void
- *
- * Created: 10/10/2026
+ * Compact top header for the active conversation view.
  */
 
-import { ArrowLeft, Circle } from "lucide-react";
-import { Link } from "react-router-dom";
+import Badge from "../ui/Badge.jsx";
 import Button from "../ui/Button.jsx";
-import { ROUTES } from "../../constants/routes.js";
 
-const STATUS = {
-  connecting: { label: "Connecting…", color: "text-[color:var(--warning)]" },
-  open: { label: "Connected", color: "text-[color:var(--success)]" },
-  closed: { label: "Disconnected", color: "text-[color:var(--danger)]" },
-};
-
-export default function ChatHeader({ topic = "", wsStatus = "connecting", onEnd }) {
-  const s = STATUS[wsStatus] || STATUS.connecting;
-
+export default function ChatHeader({
+  topic = "",
+  wsStatus = "connecting",
+  attemptDetected = false,
+  hintLevel = 0,
+  onAskHint,
+  onNewSession,
+  onEnd,
+  disabled = false,
+}) {
   return (
-    <header className="sticky top-0 z-30 bg-[color:var(--bg)]">
-      <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 border-b border-[color:var(--border)]">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link
-            to={ROUTES.STUDENT_DASHBOARD}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors shrink-0"
-            aria-label="Back to dashboard"
+    <div className="flex w-full items-center justify-between gap-2">
+      {/* Left: Topic title + non-normal connection state */}
+      <div className="flex min-w-0 items-center gap-2">
+        <h1 className="truncate text-[15px] font-semibold text-fg">
+          {topic || "New session"}
+        </h1>
+        {wsStatus === "connecting" && (
+          <Badge tone="warning">Connecting…</Badge>
+        )}
+        {wsStatus === "closed" && (
+          <Badge tone="danger">Offline</Badge>
+        )}
+        {attemptDetected && (
+          <Badge tone="success" className="hidden md:inline-flex">
+            Attempt verified
+          </Badge>
+        )}
+      </div>
+
+      {/* Right: Hint level & session actions */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <span className="hidden sm:inline text-xs text-fg-muted px-1.5">
+          Hint {hintLevel}/5
+        </span>
+
+        {onAskHint && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAskHint}
+            disabled={disabled}
+            className="hidden md:inline-flex"
           >
-            <ArrowLeft size={16} />
-          </Link>
-          <div className="min-w-0">
-            <h1 className="text-sm md:text-base font-bold truncate">
-              {topic || "Tutoring session"}
-            </h1>
-            <p className={`text-[11px] flex items-center gap-1 ${s.color}`}>
-              <Circle size={6} fill="currentColor" /> {s.label}
-            </p>
-          </div>
-        </div>
+            Next hint
+          </Button>
+        )}
+
+        {onNewSession && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onNewSession}
+            className="hidden sm:inline-flex"
+          >
+            New session
+          </Button>
+        )}
 
         <Button variant="secondary" size="sm" onClick={onEnd}>
           End session
         </Button>
       </div>
-    </header>
+    </div>
   );
 }

@@ -9,7 +9,7 @@ Created: 18/11/2026
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from agents.state import AgentState
 from vector.chroma_client import get_vector_store

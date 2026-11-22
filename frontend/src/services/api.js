@@ -6,12 +6,16 @@
 
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 let _token = null;
 try {
   _token = typeof window !== "undefined" ? localStorage.getItem("cognicode_token") : null;
-} catch (e) {}
+} catch {
+  // Storage unavailable
+}
 
 let _onUnauthorized = null;
 
@@ -23,14 +27,18 @@ export function setToken(token) {
     } else {
       localStorage.removeItem("cognicode_token");
     }
-  } catch (e) {}
+  } catch {
+    // Storage unavailable
+  }
 }
 
 export function getToken() {
   if (!_token && typeof window !== "undefined") {
     try {
       _token = localStorage.getItem("cognicode_token") || null;
-    } catch (e) {}
+    } catch {
+      // Storage unavailable
+    }
   }
   return _token;
 }
@@ -41,7 +49,9 @@ export function clearToken() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("cognicode_token");
     }
-  } catch (e) {}
+  } catch {
+    // Storage unavailable
+  }
 }
 export function onUnauthorized(cb) { _onUnauthorized = cb; }
 

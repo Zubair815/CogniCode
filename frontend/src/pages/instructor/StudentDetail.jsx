@@ -1,48 +1,77 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, AlertCircle, Clock, BookOpen, Sparkles, TrendingUp, ShieldAlert, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
+import Alert from "../../components/ui/Alert.jsx";
+import Avatar from "../../components/ui/Avatar.jsx";
+import Badge from "../../components/ui/Badge.jsx";
 import Button from "../../components/ui/Button.jsx";
+import Card from "../../components/ui/Card.jsx";
 import { ROUTES } from "../../constants/routes.js";
 import { instructorService } from "../../services/instructorService.js";
 
 export default function StudentDetail() {
   const navigate = useNavigate();
   const { studentId } = useParams();
+  const [reminded, setReminded] = useState(false);
 
   const [student, setStudent] = useState({
     name: "Hamza Tariq",
     email: "hamza.tariq@pucit.edu.pk",
     rollNo: "BSEF23M512",
     score: 81,
-    riskBand: "High Risk",
+    riskBand: "High",
     hintAvg: 3.8,
     sessionCount: 12,
   });
 
   const [factors, setFactors] = useState([
-    { name: "Direct Solution Requests", value: 88, band: "High Risk", desc: "Frequently requests code immediately" },
-    { name: "Average Hint Depth", value: 76, band: "High Risk", desc: "Reaches Level 4/5 in 72% of queries" },
-    { name: "Interaction Time Gap", value: 82, band: "High Risk", desc: "Average response time < 15 seconds (copy-pasting)" },
-    { name: "Code Debugging Attempts", value: 24, band: "Critical", desc: "Rarely tests or modifies code before re-prompting" },
-    { name: "Conceptual Quiz Score", value: 38, band: "Low", desc: "Fails pre-hint understanding checks" },
-    { name: "Metacognitive Reflection", value: 40, band: "Moderate", desc: "Brief or generic post-session reflection notes" },
+    {
+      name: "Direct solution requests",
+      value: 88,
+      desc: "Requests complete code before submitting an attempt",
+    },
+    {
+      name: "Average hint depth",
+      value: 76,
+      desc: "Reaches Level 4–5 hints in 72% of queries",
+    },
+    {
+      name: "Interaction time gap",
+      value: 82,
+      desc: "Average interval under 15 seconds between prompts",
+    },
+    {
+      name: "Code debugging attempts",
+      value: 24,
+      desc: "Rarely modifies or traces code before re-prompting",
+    },
+    {
+      name: "Conceptual quiz score",
+      value: 38,
+      desc: "Pre-hint understanding check accuracy",
+    },
+    {
+      name: "Reflection completeness",
+      value: 40,
+      desc: "Post-session reflection notes",
+    },
   ]);
 
   const [sessions, setSessions] = useState([
     {
       id: "sess-1",
       topic: "Recursion: Towers of Hanoi",
-      detail: "14 interactions · Hint Level reached: 4 (Partial Code) · Attempt Detected: No",
-      band: "High Dependency",
-      bandColor: "text-[color:var(--danger)] bg-[color:var(--danger)]/10",
+      detail: "14 turns · Hint level 4 · No initial attempt",
+      band: "High",
+      tone: "danger",
     },
     {
       id: "sess-2",
       topic: "Binary Search Tree Inversion",
-      detail: "8 interactions · Hint Level reached: 2 (Concept Reminder) · Attempt Detected: Yes",
-      band: "Low Dependency",
-      bandColor: "text-[color:var(--success)] bg-[color:var(--success)]/10",
+      detail: "8 turns · Hint level 2 · Attempt verified",
+      band: "Low",
+      tone: "success",
     },
   ]);
 
@@ -58,19 +87,48 @@ export default function StudentDetail() {
             email: data.email,
             rollNo: data.email,
             score: Math.round(data.overall_cds),
-            riskBand: data.risk_band === "high" ? "High Risk" : data.risk_band === "moderate" ? "Moderate" : "Low Risk",
+            riskBand:
+              data.risk_band === "high"
+                ? "High"
+                : data.risk_band === "moderate"
+                ? "Moderate"
+                : "Low",
             hintAvg: ((data.signals?.hint_depth || 20) / 20).toFixed(1),
             sessionCount: data.sessions?.length || 0,
           });
 
           if (data.signals) {
             setFactors([
-              { name: "Direct Solution Requests", value: Math.round(data.signals.solution_frequency), band: data.signals.solution_frequency > 50 ? "High Risk" : "Normal", desc: "S1: Solution request frequency" },
-              { name: "Average Hint Depth", value: Math.round(data.signals.hint_depth), band: data.signals.hint_depth > 50 ? "High Risk" : "Normal", desc: "S2: Scaffolding depth reached (Level 1-5)" },
-              { name: "Interaction Time Gap", value: Math.round(data.signals.time_gap), band: data.signals.time_gap > 50 ? "High Risk" : "Normal", desc: "S4: Rapid prompt frequency (<20s intervals)" },
-              { name: "Code Debugging Attempts", value: Math.round(data.signals.debugging_attempts), band: data.signals.debugging_attempts > 50 ? "High Risk" : "Normal", desc: "S5: Absence of independent debugging" },
-              { name: "Conceptual Quiz Score", value: Math.round(data.signals.quiz_performance), band: "Low", desc: "S6: Pre-hint conceptual understanding checks" },
-              { name: "Attempt Perseverance", value: Math.round(data.signals.retry_count), band: "Normal", desc: "S3: Student code submission ratio" },
+              {
+                name: "Direct solution requests",
+                value: Math.round(data.signals.solution_frequency),
+                desc: "Solution request frequency",
+              },
+              {
+                name: "Average hint depth",
+                value: Math.round(data.signals.hint_depth),
+                desc: "Scaffolding depth reached (Level 1–5)",
+              },
+              {
+                name: "Interaction time gap",
+                value: Math.round(data.signals.time_gap),
+                desc: "Rapid prompt frequency (<20s intervals)",
+              },
+              {
+                name: "Code debugging attempts",
+                value: Math.round(data.signals.debugging_attempts),
+                desc: "Independent debugging frequency",
+              },
+              {
+                name: "Conceptual quiz score",
+                value: Math.round(data.signals.quiz_performance),
+                desc: "Pre-hint conceptual understanding checks",
+              },
+              {
+                name: "Attempt perseverance",
+                value: Math.round(data.signals.retry_count),
+                desc: "Student code submission ratio",
+              },
             ]);
           }
 
@@ -79,15 +137,27 @@ export default function StudentDetail() {
               data.sessions.map((s) => ({
                 id: s.session_id,
                 topic: s.topic,
-                detail: `CDS: ${s.dependency_score} · Solution asks: ${s.solution_requests} · Reflection: ${s.reflection_stored ? "Yes" : "No"}`,
-                band: s.dependency_band === "high" ? "High Dependency" : s.dependency_band === "moderate" ? "Moderate Dependency" : "Low Dependency",
-                bandColor: s.dependency_band === "high" ? "text-[color:var(--danger)] bg-[color:var(--danger)]/10" : "text-[color:var(--success)] bg-[color:var(--success)]/10",
+                detail: `CDS ${s.dependency_score} · Solution asks: ${s.solution_requests} · Reflection: ${
+                  s.reflection_stored ? "Yes" : "No"
+                }`,
+                band:
+                  s.dependency_band === "high"
+                    ? "High"
+                    : s.dependency_band === "moderate"
+                    ? "Moderate"
+                    : "Low",
+                tone:
+                  s.dependency_band === "high"
+                    ? "danger"
+                    : s.dependency_band === "moderate"
+                    ? "warning"
+                    : "success",
               }))
             );
           }
         }
-      } catch (err) {
-        // Fallback to sample data
+      } catch {
+        // Keep sample drilldown data
       }
     }
     loadStudent();
@@ -96,127 +166,108 @@ export default function StudentDetail() {
     };
   }, [studentId]);
 
+  const riskTone =
+    student.score > 70 ? "danger" : student.score > 40 ? "warning" : "success";
+
   return (
     <AppLayout activeCds={0}>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(ROUTES.INSTRUCTOR_DASHBOARD)}
-          className="text-xs -ml-2 mb-2"
-        >
-          <ArrowLeft size={14} className="mr-1.5" /> Back to Cohort Dashboard
-        </Button>
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(ROUTES.INSTRUCTOR_DASHBOARD)}
+            className="-ml-2"
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span>Back to cohort</span>
+          </Button>
+        </div>
 
-        {/* Profile Card */}
-        <div className="p-6 rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg2)] flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[color:var(--danger)]/15 text-[color:var(--danger)] flex items-center justify-center font-black text-2xl shrink-0">
-              {student.name.charAt(0)}
-            </div>
+        {reminded && (
+          <Alert tone="success" onDismiss={() => setReminded(false)}>
+            Practice recommendation sent to {student.name}.
+          </Alert>
+        )}
+
+        {/* Student profile header */}
+        <div className="flex flex-col justify-between gap-4 border-b border-line-subtle pb-6 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3.5">
+            <Avatar name={student.name} size="lg" />
             <div>
-              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-                {student.name}
-              </h1>
-              <p className="text-xs text-[color:var(--text-muted)] font-mono mt-0.5">
-                {student.email}
-              </p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
-                <span className={`px-2.5 py-0.5 rounded-full font-bold ${
-                  student.score > 70
-                    ? "bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
-                    : student.score > 40
-                    ? "bg-[color:var(--warning)]/10 text-[color:var(--warning)]"
-                    : "bg-[color:var(--success)]/10 text-[color:var(--success)]"
-                }`}>
-                  Score: {student.score} — {student.riskBand}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-[color:var(--warning)]/10 text-[color:var(--warning)] font-bold">
-                  Hint Avg: {student.hintAvg} / 5
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-[color:var(--surface-2)] text-[color:var(--text)] font-semibold">
-                  {student.sessionCount} Sessions Recorded
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight text-fg">
+                  {student.name}
+                </h1>
+                <Badge tone={riskTone}>
+                  CDS {student.score} · {student.riskBand}
+                </Badge>
               </div>
+              <p className="mt-0.5 text-xs text-fg-secondary">
+                <span className="font-mono">{student.email}</span> · Hint avg {student.hintAvg}/5 · {student.sessionCount} sessions
+              </p>
             </div>
           </div>
 
-          <div className="flex sm:flex-col items-end gap-2 shrink-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => alert("Notification sent to student to review recursion fundamentals.")}
-            >
-              Recommend Remediation
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setReminded(true)}
+          >
+            Send practice reminder
+          </Button>
         </div>
 
-        {/* 6-Factor Cognitive Breakdown */}
-        <div className="p-6 rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg2)] space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">Cognitive Dependency Indicators (BR-08)</h2>
-            <span className="text-xs text-[color:var(--text-muted)]">Real-time telemetry</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {factors.map((f, i) => (
-              <div
-                key={i}
-                className="p-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-[color:var(--text)]">{f.name}</span>
-                  <span
-                    className={`font-black ${
-                      f.value > 70
-                        ? "text-[color:var(--danger)]"
-                        : f.value > 40
-                        ? "text-[color:var(--warning)]"
-                        : "text-[color:var(--success)]"
-                    }`}
-                  >
-                    {f.value}%
-                  </span>
+        {/* 6-Factor Breakdown (flattened, no nested sub-cards) */}
+        <Card title="Dependency signals">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
+            {factors.map((f) => {
+              const barColor =
+                f.value > 70
+                  ? "bg-danger"
+                  : f.value > 40
+                  ? "bg-warning"
+                  : "bg-success";
+              return (
+                <div key={f.name} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-fg">{f.name}</span>
+                    <span className="font-mono text-fg-secondary">
+                      {f.value}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+                    <div
+                      className={`h-full rounded-full ${barColor}`}
+                      style={{ width: `${f.value}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-fg-muted">{f.desc}</p>
                 </div>
-                <div className="w-full bg-[color:var(--surface-2)] h-2 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      f.value > 70
-                        ? "bg-[color:var(--danger)]"
-                        : f.value > 40
-                        ? "bg-[color:var(--warning)]"
-                        : "bg-[color:var(--success)]"
-                    }`}
-                    style={{ width: `${f.value}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-[color:var(--text-muted)]">{f.desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </div>
+        </Card>
 
-        {/* Recent Session Logs */}
-        <div className="p-6 rounded-3xl border border-[color:var(--border)] bg-[color:var(--bg2)] space-y-4 shadow-sm">
-          <h2 className="text-base font-bold">Recent Socratic Dialogue Sessions</h2>
-          <div className="space-y-3">
+        {/* Recent sessions (divided list, no cards inside a card) */}
+        <Card title="Recent sessions" padding="p-0">
+          <div className="divide-y divide-line-subtle">
             {sessions.map((sess) => (
               <div
                 key={sess.id}
-                className="p-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                className="flex flex-col justify-between gap-2 px-5 py-3.5 sm:flex-row sm:items-center"
               >
                 <div>
-                  <div className="font-bold text-[color:var(--text)]">{sess.topic}</div>
-                  <div className="text-[color:var(--text-muted)] mt-1">{sess.detail}</div>
+                  <div className="text-sm font-medium text-fg">{sess.topic}</div>
+                  <div className="mt-0.5 text-xs text-fg-secondary">
+                    {sess.detail}
+                  </div>
                 </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded self-start sm:self-auto ${sess.bandColor}`}>
-                  {sess.band}
-                </span>
+                <Badge tone={sess.tone}>{sess.band}</Badge>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </AppLayout>
   );

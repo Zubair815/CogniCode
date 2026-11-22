@@ -2,9 +2,6 @@
 Unit tests for Phase 6: System Hardening, Adversarial Defense, and ReportLab PDF Exporter.
 """
 
-import io
-import pytest
-
 from agents.socratic_tutor import SocraticTutor
 from core.report_generator import generate_cohort_pdf_report
 from schemas.instructor import CohortOverviewResponse, HighRiskStudentSummary

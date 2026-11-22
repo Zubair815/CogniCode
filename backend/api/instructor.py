@@ -25,10 +25,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session as DBSession
 
 from auth.dependencies import get_current_user, require_role
-from db.models import DependencyHistory, InstructorCourse, Reflection, Session, User
+from db.models import InstructorCourse, Reflection, Session, User
 from db.session import get_db
 from agents.reflection import ReflectionAgent
-from core.cds_engine import calculate_session_signals, get_student_cds_aggregate
+from core.cds_engine import get_student_cds_aggregate
 from core.report_generator import generate_cohort_pdf_report
 from schemas.instructor import (
     CohortOverviewResponse,

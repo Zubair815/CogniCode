@@ -1,36 +1,57 @@
 /**
  * AuthLayout
  * ----------
- * Centered auth card used by Login, Register, and ForgotPassword.
- * No separate brand panel — the brand lives inside the card header
- * so the layout works identically on mobile and desktop.
- *
- * Created: 10/10/2026
- * Updated: 10/10/2026
+ * Minimal, centered authentication shell matching the product's
+ * conversational design language.
  */
 
+import { Link } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
 import Logo from "../brand/Logo.jsx";
+import IconButton from "../ui/IconButton.jsx";
+import { useTheme } from "../../context/ThemeContext.jsx";
+import { ROUTES } from "../../constants/routes.js";
 
-export default function AuthLayout({ children }) {
+export default function AuthLayout({ title, subtitle, children }) {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[color:var(--bg)] px-4 py-8">
-      <div
-        className="w-full max-w-[440px] rounded-2xl border border-[color:var(--border-2)] p-6 md:p-8 shadow-card"
-        style={{ background: "var(--bg2)" }}
-      >
-        {/* Brand header */}
-        <div className="flex flex-col items-center text-center mb-6 md:mb-8">
-          <Logo size={44} />
-          <h1 className="mt-3 text-xl md:text-2xl font-black tracking-tight text-[color:var(--text)]">
-            CogniCode
-          </h1>
-          <p className="text-[11px] md:text-xs text-[color:var(--text-muted)] mt-1">
-            AI Teaching Assistant for Programming
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col bg-canvas text-fg">
+      {/* Top minimal bar */}
+      <header className="flex h-header items-center justify-between px-4 md:px-6">
+        <Link to={ROUTES.LANDING} className="inline-flex items-center">
+          <Logo size={26} withWordmark />
+        </Link>
+        <IconButton
+          label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          size="sm"
+          onClick={toggleTheme}
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </IconButton>
+      </header>
 
-        {children}
-      </div>
+      {/* Centered auth surface */}
+      <main className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[400px]">
+          {(title || subtitle) && (
+            <div className="mb-6 text-center">
+              {title && (
+                <h1 className="text-2xl font-semibold tracking-tight text-fg">
+                  {title}
+                </h1>
+              )}
+              {subtitle && (
+                <p className="mt-1.5 text-sm text-fg-secondary">{subtitle}</p>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-line-subtle bg-canvas p-6">
+            {children}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

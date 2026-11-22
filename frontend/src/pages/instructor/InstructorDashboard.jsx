@@ -1,15 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, AlertCircle, ArrowUpRight, TrendingUp, Sparkles, Map, ChevronRight, Loader2, Download } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import AppLayout from "../../components/layout/AppLayout.jsx";
-import Button from "../../components/ui/Button.jsx";
+import Alert from "../../components/ui/Alert.jsx";
 import Badge from "../../components/ui/Badge.jsx";
+import Button from "../../components/ui/Button.jsx";
+import Card from "../../components/ui/Card.jsx";
 import { ROUTES } from "../../constants/routes.js";
 import { instructorService } from "../../services/instructorService.js";
 
 export default function InstructorDashboard() {
   const navigate = useNavigate();
   const [downloading, setDownloading] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [stats, setStats] = useState({
     avgCds: 48,
     highRiskCount: 8,
@@ -23,7 +26,7 @@ export default function InstructorDashboard() {
       name: "Hamza Tariq",
       rollNo: "BSEF23M512",
       score: 81,
-      band: "High Risk",
+      band: "High",
       hintAvg: 3.8,
       quizAvg: "38%",
       sessions: 12,
@@ -33,7 +36,7 @@ export default function InstructorDashboard() {
       name: "Kiran Shafiq",
       rollNo: "BSEF23M519",
       score: 74,
-      band: "High Risk",
+      band: "High",
       hintAvg: 3.2,
       quizAvg: "44%",
       sessions: 10,
@@ -63,7 +66,7 @@ export default function InstructorDashboard() {
       name: "Bilal Ahmad",
       rollNo: "BSEF23M544",
       score: 34,
-      band: "Low Risk",
+      band: "Low",
       hintAvg: 1.4,
       quizAvg: "82%",
       sessions: 11,
@@ -79,7 +82,10 @@ export default function InstructorDashboard() {
           setStats((prev) => ({
             ...prev,
             avgCds: data.average_cds || prev.avgCds,
-            highRiskCount: data.high_risk_count !== undefined ? data.high_risk_count : prev.highRiskCount,
+            highRiskCount:
+              data.high_risk_count !== undefined
+                ? data.high_risk_count
+                : prev.highRiskCount,
           }));
 
           if (data.high_risk_students && data.high_risk_students.length > 0) {
@@ -88,7 +94,12 @@ export default function InstructorDashboard() {
               name: s.name,
               rollNo: s.email,
               score: Math.round(s.cds_score),
-              band: s.risk_band === "high" ? "High Risk" : s.risk_band === "moderate" ? "Moderate" : "Low Risk",
+              band:
+                s.risk_band === "high"
+                  ? "High"
+                  : s.risk_band === "moderate"
+                  ? "Moderate"
+                  : "Low",
               hintAvg: s.max_hint_level ? s.max_hint_level.toFixed(1) : "2.5",
               quizAvg: "45%",
               sessions: s.solution_requests || 1,
@@ -96,8 +107,8 @@ export default function InstructorDashboard() {
             setStudents(mapped);
           }
         }
-      } catch (err) {
-        // Fallback to local default cohort
+      } catch {
+        // Fallback to default cohort dataset
       }
     }
     loadCohort();
@@ -108,9 +119,12 @@ export default function InstructorDashboard() {
 
   const handleDownloadPdf = async () => {
     setDownloading(true);
+    setExportError("");
     try {
       const blob = await instructorService.exportCohortPdf();
-      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/pdf" })
+      );
       const a = document.createElement("a");
       a.href = url;
       a.download = "CogniCode_Cohort_Audit.pdf";
@@ -118,8 +132,10 @@ export default function InstructorDashboard() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err) {
-      alert("Failed to export PDF report. Please verify connection.");
+    } catch {
+      setExportError(
+        "Unable to export the PDF report. Check that the backend server is reachable and try again."
+      );
     } finally {
       setDownloading(false);
     }
@@ -127,164 +143,125 @@ export default function InstructorDashboard() {
 
   return (
     <AppLayout activeCds={0}>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 md:px-8 md:py-8 space-y-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Cohort Analytics Dashboard
+            <h1 className="text-2xl font-semibold tracking-tight text-fg">
+              Cohort analytics
             </h1>
-            <p className="text-xs md:text-sm text-[color:var(--text-muted)] mt-1">
-              Data Structures & Algorithms · Fall 2026 Cohort Monitoring
+            <p className="mt-1 text-sm text-fg-secondary">
+              CS201 · Data Structures & Algorithms · Fall 2026
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
               onClick={handleDownloadPdf}
-              disabled={downloading}
+              loading={downloading}
             >
-              <Download size={16} className="mr-1.5" />
-              {downloading ? "Exporting..." : "Export Audit PDF"}
+              <Download size={15} aria-hidden="true" />
+              <span>{downloading ? "Exporting…" : "Export PDF"}</span>
             </Button>
             <Button
               variant="primary"
               onClick={() => navigate(ROUTES.INSTRUCTOR_HEATMAP)}
             >
-              <Map size={16} className="mr-1.5" />
-              Dependency Heatmap
+              Topic heatmap
             </Button>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--warning)]">
-              48
+        {exportError && (
+          <Alert tone="danger" onDismiss={() => setExportError("")}>
+            {exportError}
+          </Alert>
+        )}
+
+        {/* Summary metrics */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Average CDS</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">
+              {stats.avgCds}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Cohort Avg CDS
-            </div>
-            <div className="text-[10px] text-[color:var(--text-muted)] mt-2">
-              Moderate Dependency
-            </div>
+            <div className="mt-1 text-xs text-warning">Moderate</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--danger)]">
-              8
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">High-risk students</div>
+            <div className="mt-1 text-2xl font-semibold text-danger">
+              {stats.highRiskCount}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              High Risk Students
-            </div>
-            <div className="text-[10px] text-[color:var(--danger)] mt-2 font-medium">
-              Requires Socratic Intervention
-            </div>
+            <div className="mt-1 text-xs text-fg-muted">CDS &gt; 70</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--text)]">
-              2.8
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Average hint depth</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">
+              {stats.hintAvg}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Avg Hint Depth
-            </div>
-            <div className="text-[10px] text-[color:var(--text-muted)] mt-2">
-              Scale 1.0 (Nudge) to 5.0 (Code)
-            </div>
+            <div className="mt-1 text-xs text-fg-muted">Scale 1–5</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)]">
-            <div className="text-2xl md:text-3xl font-black text-[color:var(--success)]">
-              68%
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+            <div className="text-xs text-fg-secondary">Quiz average</div>
+            <div className="mt-1 text-2xl font-semibold text-fg">
+              {stats.quizAvg}
             </div>
-            <div className="text-xs font-semibold text-[color:var(--text-muted)] mt-1">
-              Avg Quiz Score
-            </div>
-            <div className="text-[10px] text-[color:var(--success)] mt-2 font-medium">
-              ↑ 5% this month
-            </div>
+            <div className="mt-1 text-xs text-success">+5% this month</div>
           </div>
         </div>
 
-        {/* High Risk Banner */}
-        <div className="p-4 rounded-2xl border border-[color:var(--danger)]/30 bg-[color:var(--danger)]/10 flex items-start gap-3">
-          <AlertCircle size={20} className="text-[color:var(--danger)] shrink-0 mt-0.5" />
-          <div className="text-xs md:text-sm">
-            <strong className="text-[color:var(--text)]">Cognitive Dependency Alert:</strong>{" "}
-            Students in the high-risk band are reaching Level 4/5 hints prematurely without attempting
-            their own code formulations. The Socratic engine is currently enforcing stricter attempt verification for these accounts.
-          </div>
-        </div>
-
-        {/* Student Table */}
-        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg2)] overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-[color:var(--border)] flex items-center justify-between">
-            <h2 className="text-sm font-bold text-[color:var(--text)]">
-              Student Dependency Roster
-            </h2>
-            <span className="text-xs text-[color:var(--text-muted)]">
-              Showing {students.length} students
-            </span>
-          </div>
-
+        <Card title="Students" padding="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-muted)] uppercase tracking-wider font-semibold">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
                 <tr>
-                  <th className="px-5 py-3.5">Student</th>
-                  <th className="px-4 py-3.5">CDS Score</th>
-                  <th className="px-4 py-3.5">Risk Band</th>
-                  <th className="px-4 py-3.5">Avg Hint Level</th>
-                  <th className="px-4 py-3.5">Quiz Avg</th>
-                  <th className="px-5 py-3.5 text-right">Drilldown</th>
+                  <th className="px-5 py-3 font-medium">Student</th>
+                  <th className="px-4 py-3 font-medium">CDS</th>
+                  <th className="px-4 py-3 font-medium">Band</th>
+                  <th className="px-4 py-3 font-medium">Avg hint</th>
+                  <th className="px-4 py-3 font-medium">Quiz avg</th>
+                  <th className="px-5 py-3 text-right font-medium">
+                    <span className="sr-only">View student</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[color:var(--border)]">
+              <tbody className="divide-y divide-line-subtle">
                 {students.map((stu) => {
-                  let bandColor = "text-[color:var(--success)] bg-[color:var(--success)]/10";
-                  if (stu.score > 70) {
-                    bandColor = "text-[color:var(--danger)] bg-[color:var(--danger)]/10";
-                  } else if (stu.score > 40) {
-                    bandColor = "text-[color:var(--warning)] bg-[color:var(--warning)]/10";
-                  }
+                  const tone =
+                    stu.score > 70
+                      ? "danger"
+                      : stu.score > 40
+                      ? "warning"
+                      : "success";
 
                   return (
                     <tr
                       key={stu.id}
                       onClick={() => navigate(ROUTES.INSTRUCTOR_DETAIL)}
-                      className="hover:bg-[color:var(--surface)] cursor-pointer transition-colors"
+                      className="cursor-pointer transition-colors hover:bg-hover"
                     >
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-[color:var(--text)]">{stu.name}</div>
-                        <div className="text-[11px] text-[color:var(--text-muted)] font-mono">
+                      <td className="px-5 py-3.5">
+                        <div className="font-medium text-fg">{stu.name}</div>
+                        <div className="font-mono text-xs text-fg-muted">
                           {stu.rollNo}
                         </div>
                       </td>
-                      <td className="px-4 py-4 font-black text-sm">
-                        <span
-                          className={
-                            stu.score > 70
-                              ? "text-[color:var(--danger)]"
-                              : stu.score > 40
-                              ? "text-[color:var(--warning)]"
-                              : "text-[color:var(--success)]"
-                          }
-                        >
-                          {stu.score}
-                        </span>
+                      <td className="px-4 py-3.5 font-mono font-semibold text-fg">
+                        {stu.score}
                       </td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${bandColor}`}>
-                          {stu.band}
-                        </span>
+                      <td className="px-4 py-3.5">
+                        <Badge tone={tone}>{stu.band}</Badge>
                       </td>
-                      <td className="px-4 py-4 font-mono font-medium">{stu.hintAvg}</td>
-                      <td className="px-4 py-4 font-mono font-medium">{stu.quizAvg}</td>
-                      <td className="px-5 py-4 text-right">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs">
-                          Inspect <ChevronRight size={14} className="ml-1" />
-                        </Button>
+                      <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                        {stu.hintAvg}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                        {stu.quizAvg}
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-fg-muted">
+                        <ChevronRight size={16} className="inline-block" aria-hidden="true" />
                       </td>
                     </tr>
                   );
@@ -292,7 +269,7 @@ export default function InstructorDashboard() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </div>
     </AppLayout>
   );

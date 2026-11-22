@@ -1,819 +1,427 @@
 /**
  * Landing page.
- *
  * Route: /
- *
- * Public marketing page explaining CogniCode's core value
- * proposition, features, and how it works. Uses scroll-triggered
- * animations, animated SVG illustrations, and the frozen brand
- * color scheme.
- *
- * Sections:
- *   1. Sticky navbar
- *   2. Hero
- *   3. The Problem
- *   4. Core Features
- *   5. How It Works
- *   6. For Students / For Instructors
- *   7. Stats
- *   8. Final CTA
- *   9. Footer
- *
- * Created: 10/10/2026
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  BookOpen,
-  Brain,
-  CheckCircle2,
-  Eye,
-  Gauge,
-  GraduationCap,
-  Layers,
-  LineChart,
-  Moon,
-  NotebookPen,
-  Presentation,
-  Sparkles,
-  Sun,
-  Target,
-  TrendingDown,
-  Users,
-} from "lucide-react";
+import { ArrowUp, Moon, Sun } from "lucide-react";
 
 import Logo from "../components/brand/Logo.jsx";
-import Button from "../components/ui/Button.jsx";
 import Badge from "../components/ui/Badge.jsx";
+import Button from "../components/ui/Button.jsx";
+import IconButton from "../components/ui/IconButton.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { ROUTES } from "../constants/routes.js";
 
+const PREVIEW_SESSIONS = [
+  {
+    id: "linked-list",
+    topic: "Linked List Reversal",
+    hintLevel: "1/5",
+    cds: "28",
+    turns: [
+      {
+        role: "student",
+        text: "Can you write a function to reverse a singly linked list in Python?",
+      },
+      {
+        role: "assistant",
+        label: "Level 1 · Conceptual nudge",
+        text: "Before writing the loop, picture two adjacent nodes A → B. If you redirect B.next to point back to A, what reference do you lose unless you save it first?",
+      },
+      {
+        role: "student",
+        text: "I would lose the reference to B's original next node. So I need `next_node = curr.next` before setting `curr.next = prev`.",
+      },
+      {
+        role: "assistant",
+        label: "Attempt verified",
+        text: "Right. Saving `next_node = curr.next` preserves the rest of the list. In what order should `prev` and `curr` advance at the end of each step, and what should the function return when `curr` becomes `None`?",
+      },
+    ],
+  },
+  {
+    id: "recursion",
+    topic: "Recursion & Call Stack",
+    hintLevel: "2/5",
+    cds: "32",
+    turns: [
+      {
+        role: "student",
+        text: "My recursive binary search keeps hitting RecursionError on elements not in the array.",
+      },
+      {
+        role: "assistant",
+        label: "Termination check",
+        text: "A `RecursionError` means the search interval never stops shrinking. Look at your base case and midpoint update: what happens to `low` and `high` when `low == high` and the target is not at `arr[mid]`?",
+      },
+      {
+        role: "student",
+        text: "I passed `mid` instead of `mid - 1` and `mid + 1`, so the interval stayed the same size when `low == high`.",
+      },
+      {
+        role: "assistant",
+        label: "Attempt verified",
+        text: "Exactly. Because `arr[mid]` has already been checked, excluding `mid` via `mid - 1` or `mid + 1` shrinks the interval on every call and guarantees termination when `low > high`.",
+      },
+    ],
+  },
+];
 
-// =============================================================================
-// HOOKS
-// =============================================================================
-/**
- * useReveal
- * ---------
- * Adds a scroll-triggered reveal to any element. When the element
- * enters the viewport, the `revealed` flag flips to true and the
- * consumer applies the appropriate CSS class.
- */
-function useReveal(options = { rootMargin: "0px 0px -80px 0px", threshold: 0.1 }) {
-  const ref = useRef(null);
-  const [revealed, setRevealed] = useState(false);
+const CORE_PILLARS = [
+  {
+    title: "Questions before code",
+    description:
+      "When a student asks for a finished solution without an initial attempt, CogniCode responds with a focused question about the underlying invariant.",
+  },
+  {
+    title: "5-level progressive hints",
+    description:
+      "Guidance escalates from a conceptual nudge (Level 1) and invariant reminder (Level 2) to pseudocode (Level 3), partial templates (Level 4), and worked references (Level 5).",
+  },
+  {
+    title: "Cognitive Dependency Score (CDS)",
+    description:
+      "A 0–100 score computed from six interaction signals: solution requests, hint depth, retry count, response interval, debugging attempts, and concept check accuracy.",
+  },
+  {
+    title: "Course & cohort analytics",
+    description:
+      "Instructors track topic-level dependency heatmaps, review students relying heavily on Level 4–5 hints, and export PDF cohort audit reports.",
+  },
+];
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+const WORKFLOW_STEPS = [
+  {
+    step: "1",
+    title: "Ask or paste an attempt",
+    description:
+      "Start a session on any programming topic and share your initial approach or code.",
+  },
+  {
+    step: "2",
+    title: "Work through the question",
+    description:
+      "The tutor inspects your code syntax and responds with a guiding question or Level 1–2 hint.",
+  },
+  {
+    step: "3",
+    title: "Pass the concept check",
+    description:
+      "Answer a quick conceptual check to access Level 3+ structured pseudocode when you get stuck.",
+  },
+  {
+    step: "4",
+    title: "Write a short reflection",
+    description:
+      "Note the core takeaway and the mistake to avoid next time at the end of the session.",
+  },
+];
 
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setRevealed(true);
-        observer.disconnect();
-      }
-    }, options);
-
-    observer.observe(el);
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return { ref, revealed };
-}
-
-
-/**
- * Reveal
- * ------
- * Wrapper component that applies fade-up animation when scrolled into view.
- */
-function Reveal({ children, delay = 0, className = "" }) {
-  const { ref, revealed } = useReveal();
-  return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: revealed ? 1 : 0,
-        transform: revealed ? "translateY(0)" : "translateY(20px)",
-        transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-
-// =============================================================================
-// NAVBAR
-// =============================================================================
-function Navbar() {
+export default function Landing() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const [scrolled, setScrolled] = useState(false);
+  const [activePreviewId, setActivePreviewId] = useState(PREVIEW_SESSIONS[0].id);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const activePreview =
+    PREVIEW_SESSIONS.find((s) => s.id === activePreviewId) || PREVIEW_SESSIONS[0];
 
-  const dashboardPath =
-    user?.role === "instructor"
+  const primaryDestination = user
+    ? user.role === "instructor"
       ? ROUTES.INSTRUCTOR_DASHBOARD
-      : ROUTES.STUDENT_DASHBOARD;
+      : "/student/chat/active"
+    : ROUTES.REGISTER;
 
   return (
-    <header
-      className="sticky top-0 z-50 bg-[color:var(--bg)]"
-      // No border, no shadow — navbar blends with the body.
-    >
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
-        <Link to={ROUTES.LANDING} className="shrink-0">
-          <Logo size={30} withWordmark />
-        </Link>
+    <div className="min-h-screen bg-canvas text-fg">
+      {/* Top navigation */}
+      <header className="sticky top-0 z-header border-b border-line-subtle bg-canvas">
+        <div className="mx-auto flex h-header max-w-5xl items-center justify-between px-4 md:px-6">
+          <Link to={ROUTES.LANDING} className="inline-flex items-center">
+            <Logo size={26} withWordmark />
+          </Link>
 
-        {/* Center links (hidden on small screens) */}
-        <nav className="hidden lg:flex items-center gap-1 text-sm">
-          <a
-            href="#features"
-            className="px-3 py-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
+          <nav
+            aria-label="Primary"
+            className="hidden items-center gap-6 text-sm text-fg-secondary md:flex"
           >
-            Features
-          </a>
-          <a
-            href="#how"
-            className="px-3 py-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-          >
-            How it Works
-          </a>
-          <a
-            href="#for"
-            className="px-3 py-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-          >
-            For You
-          </a>
-        </nav>
+            <a href="#preview" className="hover:text-fg transition-colors">
+              Preview
+            </a>
+            <a href="#how-it-works" className="hover:text-fg transition-colors">
+              How it works
+            </a>
+            <a href="#courses" className="hover:text-fg transition-colors">
+              For courses
+            </a>
+          </nav>
 
-        {/* Right side actions */}
-        <div className="flex items-center gap-1.5 md:gap-2">
-          <button
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-[color:var(--text-muted)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-2)] transition-colors"
-          >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+          <div className="flex items-center gap-2">
+            <IconButton
+              label={theme === "dark" ? "Light mode" : "Dark mode"}
+              size="sm"
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </IconButton>
 
-          {user ? (
-            <Link to={dashboardPath}>
-              <Button size="sm">Go to Dashboard</Button>
-            </Link>
-          ) : (
-            <>
-              <Link to={ROUTES.LOGIN} className="hidden sm:inline-flex">
-                <Button variant="ghost" size="sm">
-                  Login
+            {user ? (
+              <Link to={primaryDestination}>
+                <Button size="sm" variant="primary">
+                  Open chat
                 </Button>
               </Link>
-              <Link to={ROUTES.REGISTER}>
-                <Button size="sm">Register</Button>
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-
-// =============================================================================
-// HERO
-// =============================================================================
-function Hero() {
-  return (
-    <section className="relative overflow-hidden">
-      {/* Background gradient orbs */}
-      <div
-        aria-hidden
-        className="absolute -top-32 -left-32 w-[400px] h-[400px] rounded-full blur-3xl opacity-40 pointer-events-none"
-        style={{ background: "radial-gradient(circle, #6366F1 0%, transparent 70%)" }}
-      />
-      <div
-        aria-hidden
-        className="absolute -bottom-40 -right-32 w-[500px] h-[500px] rounded-full blur-3xl opacity-30 pointer-events-none"
-        style={{ background: "radial-gradient(circle, #8B5CF6 0%, transparent 70%)" }}
-      />
-
-      <div className="relative max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24 lg:py-32 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-        {/* Left: copy */}
-        <div>
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[color:var(--border-2)] bg-[color:var(--surface)] text-xs text-[color:var(--primary-hi)] mb-5 md:mb-6"
-            style={{ animation: "ccFadeUp 0.6s ease both" }}
-          >
-            <Sparkles size={12} />
-            <span>Powered by multi-agent AI</span>
+            ) : (
+              <>
+                <Link to={ROUTES.LOGIN}>
+                  <Button size="sm" variant="ghost">
+                    Sign in
+                  </Button>
+                </Link>
+                <Link to={ROUTES.REGISTER}>
+                  <Button size="sm" variant="primary">
+                    Create account
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
+        </div>
+      </header>
 
-          <h1
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight"
-            style={{ animation: "ccFadeUp 0.6s ease 0.1s both" }}
-          >
-            AI that{" "}
-            <span className="gradient-text">teaches</span>,<br />
-            not just answers.
+      <main>
+        {/* Hero */}
+        <section className="mx-auto max-w-3xl px-4 pb-12 pt-14 text-center md:px-6 md:pb-16 md:pt-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-fg sm:text-4xl md:text-[44px] md:leading-[1.15]">
+            Learn programming by reasoning through the problem, not copying the answer.
           </h1>
 
-          <p
-            className="mt-5 md:mt-6 text-sm md:text-base lg:text-lg text-[color:var(--text-muted)] max-w-xl leading-relaxed"
-            style={{ animation: "ccFadeUp 0.6s ease 0.2s both" }}
-          >
-            CogniCode helps you actually learn programming by thinking —
-            not by copying AI-generated code. Socratic dialogue,
-            progressive hints, and real cognitive growth.
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-fg-secondary">
+            CogniCode is a Socratic tutoring environment for computer science courses. It guides students with targeted questions and 5-level progressive hints while giving instructors visibility into class-wide reliance patterns.
           </p>
 
-          <div
-            className="mt-7 md:mt-8 flex flex-wrap items-center gap-3"
-            style={{ animation: "ccFadeUp 0.6s ease 0.3s both" }}
-          >
-            <Link to={ROUTES.REGISTER}>
-              <Button size="md">
-                Get Started Free
-                <ArrowRight size={16} />
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <Link to={primaryDestination}>
+              <Button size="lg" variant="primary">
+                {user ? "Open chat" : "Create account"}
               </Button>
             </Link>
-            <a href="#how">
-              <Button variant="secondary" size="md">
-                See How It Works
-              </Button>
-            </a>
+            {!user && (
+              <Link to={ROUTES.LOGIN}>
+                <Button size="lg" variant="secondary">
+                  Sign in
+                </Button>
+              </Link>
+            )}
           </div>
+        </section>
 
-          <p
-            className="mt-5 text-xs text-[color:var(--text-subtle)]"
-            style={{ animation: "ccFadeUp 0.6s ease 0.4s both" }}
-          >
-            No credit card · Open to all institutions · Free for students
-          </p>
-        </div>
+        {/* Product Preview */}
+        <section id="preview" className="mx-auto max-w-5xl px-4 pb-16 md:px-6 md:pb-20">
+          <div className="overflow-hidden rounded-2xl border border-line bg-canvas">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-sidebar px-4 py-2.5 text-xs">
+              <Logo size={20} withWordmark />
 
-        {/* Right: illustration */}
-        <div className="relative flex justify-center lg:justify-end">
-          <HeroIllustration />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/**
- * HeroIllustration
- * ----------------
- * A floating card mockup showing a sample chat snippet and the
- * CDS gauge. Everything is CSS/SVG — no external images.
- */
-function HeroIllustration() {
-  return (
-    <div className="relative w-full max-w-md" style={{ animation: "ccFloat 6s ease-in-out infinite" }}>
-      {/* Card */}
-      <div className="rounded-2xl border border-[color:var(--border-2)] bg-[color:var(--bg2)] shadow-card overflow-hidden">
-        {/* Header */}
-        <div className="px-4 py-3 flex items-center justify-between border-b border-[color:var(--border)]">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[color:var(--success)]" />
-            <span className="text-xs font-semibold">Tutor Session</span>
-          </div>
-          <Badge tone="info">
-            <Gauge size={10} /> 32 · Low
-          </Badge>
-        </div>
-
-        {/* Messages */}
-        <div className="p-4 space-y-3 text-sm">
-          <div className="flex">
-            <div className="rounded-2xl rounded-tl-sm bg-[color:var(--surface-2)] border border-[color:var(--border-2)] px-3 py-2 max-w-[85%]">
-              Can you write me a function to reverse a linked list?
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div
-              className="rounded-2xl rounded-tr-sm px-3 py-2 max-w-[85%] text-white"
-              style={{ background: "var(--gradient-primary)" }}
-            >
-              Let's think first — what happens to each node's{" "}
-              <code className="bg-white/20 px-1 rounded text-[11px]">next</code>{" "}
-              pointer after reversal?
-            </div>
-          </div>
-          <div className="flex">
-            <div className="rounded-2xl rounded-tl-sm bg-[color:var(--surface-2)] border border-[color:var(--border-2)] px-3 py-2 max-w-[85%]">
-              It should point to the previous node?
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 pt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--warning)] animate-pulse" />
-            <span className="text-[10px] font-semibold text-[color:var(--warning)]">
-              Level 1 hint unlocked
-            </span>
-          </div>
-        </div>
-
-        {/* Footer input bar */}
-        <div className="px-4 py-3 border-t border-[color:var(--border)] flex gap-2">
-          <div className="flex-1 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] text-xs text-[color:var(--text-subtle)]">
-            Type your attempt…
-          </div>
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white"
-            style={{ background: "var(--gradient-primary)" }}
-          >
-            <ArrowRight size={14} />
-          </div>
-        </div>
-      </div>
-
-      {/* Floating CDS badge */}
-      <div
-        className="absolute -top-4 -right-4 md:-right-6 rounded-xl border border-[color:var(--border-2)] bg-[color:var(--bg2)] px-3 py-2 shadow-card"
-        style={{ animation: "ccFloat 5s ease-in-out infinite 0.5s" }}
-      >
-        <div className="text-[10px] uppercase font-bold text-[color:var(--text-subtle)]">
-          Dependency
-        </div>
-        <div className="text-lg font-black text-[color:var(--success)]">32</div>
-      </div>
-
-      {/* Floating icon */}
-      <div
-        className="absolute -bottom-4 -left-4 md:-left-6 w-12 h-12 rounded-xl flex items-center justify-center shadow-card"
-        style={{
-          background: "var(--gradient-primary)",
-          animation: "ccFloat 5s ease-in-out infinite 1s",
-        }}
-      >
-        <Brain size={20} className="text-white" />
-      </div>
-    </div>
-  );
-}
-
-
-// =============================================================================
-// PROBLEM
-// =============================================================================
-function Problem() {
-  const items = [
-    {
-      icon: TrendingDown,
-      title: "AI bypasses the struggle",
-      body: "Students get complete solutions on the first request — skipping the thinking that builds programming skill.",
-    },
-    {
-      icon: Eye,
-      title: "Learning becomes invisible",
-      body: "Copying code works in assignments but fails in exams, interviews, and real projects.",
-    },
-    {
-      icon: Gauge,
-      title: "No one measures reliance",
-      body: "Instructors can't see who's leaning too hard on AI until it's too late to intervene.",
-    },
-  ];
-
-  return (
-    <section className="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24">
-      <Reveal>
-        <div className="text-center mb-10 md:mb-14">
-          <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-subtle)] mb-2">
-            The Problem
-          </p>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight">
-            AI made coding easier.
-            <br />
-            <span className="gradient-text">It also made learning harder.</span>
-          </h2>
-        </div>
-      </Reveal>
-
-      <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-        {items.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <Reveal key={item.title} delay={i * 0.1}>
-              <div className="h-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 md:p-6 hover:border-[color:var(--border-2)] transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[color:var(--danger)]/15 text-[color:var(--danger)] mb-4">
-                  <Icon size={20} />
-                </div>
-                <h3 className="text-base md:text-lg font-bold mb-2">{item.title}</h3>
-                <p className="text-sm text-[color:var(--text-muted)] leading-relaxed">
-                  {item.body}
-                </p>
+              <div className="flex items-center gap-1.5">
+                {PREVIEW_SESSIONS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setActivePreviewId(s.id)}
+                    className={[
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-fast",
+                      activePreview.id === s.id
+                        ? "bg-active text-fg"
+                        : "text-fg-secondary hover:bg-hover hover:text-fg",
+                    ].join(" ")}
+                  >
+                    {s.topic}
+                  </button>
+                ))}
               </div>
-            </Reveal>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+            </div>
 
-
-// =============================================================================
-// FEATURES
-// =============================================================================
-function Features() {
-  const features = [
-    {
-      icon: Brain,
-      tone: "primary",
-      title: "Socratic Tutoring",
-      body: "When you ask for code without an attempt, CogniCode responds with a guiding question instead. Think first — then get help.",
-      points: ["Attempt detection", "Context-aware questions", "No repeated prompts"],
-    },
-    {
-      icon: Layers,
-      tone: "violet",
-      title: "5-Level Progressive Hints",
-      body: "Conceptual nudge → concept reminder → pseudocode → partial code → full solution. Each level unlocks only after you demonstrate an attempt.",
-      points: ["Locked until you try", "Escalating guidance", "Full solution as last resort"],
-    },
-    {
-      icon: Gauge,
-      tone: "warning",
-      title: "Cognitive Dependency Score",
-      body: "A real-time behavioral metric based on six signals — hint level, solution requests, retries, debugging effort, interaction time, quiz performance.",
-      points: ["Updated live", "Trend over time", "Visible to you first"],
-    },
-    {
-      icon: LineChart,
-      tone: "success",
-      title: "Instructor Analytics",
-      body: "Instructors see course-wide dependency heatmaps, weak topic detection, and per-student drill-down — without invading anyone's privacy.",
-      points: ["Course heatmap", "Student drill-down", "PDF export"],
-    },
-  ];
-
-  const TONE_BG = {
-    primary: "bg-[#6366F1]/15 text-[#818CF8]",
-    violet: "bg-[#8B5CF6]/15 text-[#A78BFA]",
-    warning: "bg-[#F59E0B]/15 text-[#F59E0B]",
-    success: "bg-[#10B981]/15 text-[#10B981]",
-  };
-
-  return (
-    <section id="features" className="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24">
-      <Reveal>
-        <div className="text-center mb-10 md:mb-14">
-          <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-subtle)] mb-2">
-            Core Features
-          </p>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight">
-            Everything you need to
-            <br />
-            <span className="gradient-text">actually learn to code.</span>
-          </h2>
-        </div>
-      </Reveal>
-
-      <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-        {features.map((f, i) => {
-          const Icon = f.icon;
-          return (
-            <Reveal key={f.title} delay={(i % 2) * 0.1}>
-              <div className="h-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 md:p-6 hover:border-[color:var(--border-2)] hover:-translate-y-0.5 transition-all">
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${TONE_BG[f.tone]}`}
-                >
-                  <Icon size={22} />
+            <div className="grid grid-cols-1 md:grid-cols-[210px_1fr]">
+              {/* Left sidebar preview */}
+              <div className="hidden border-r border-line-subtle bg-sidebar p-3 md:flex md:flex-col md:justify-between">
+                <div>
+                  <div className="px-2 pb-1 text-xs font-medium text-fg-muted">
+                    Recent
+                  </div>
+                  <div className="space-y-0.5">
+                    {PREVIEW_SESSIONS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setActivePreviewId(s.id)}
+                        className={[
+                          "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors",
+                          activePreview.id === s.id
+                            ? "bg-active font-medium text-fg"
+                            : "text-fg-secondary hover:bg-hover",
+                        ].join(" ")}
+                      >
+                        <span className="truncate">{s.topic}</span>
+                      </button>
+                    ))}
+                    <div className="truncate rounded-md px-2 py-1.5 text-xs text-fg-muted">
+                      Binary Search Trees
+                    </div>
+                    <div className="truncate rounded-md px-2 py-1.5 text-xs text-fg-muted">
+                      Dynamic Programming
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-2">{f.title}</h3>
-                <p className="text-sm text-[color:var(--text-muted)] leading-relaxed mb-4">
-                  {f.body}
-                </p>
-                <ul className="space-y-1.5">
-                  {f.points.map((p) => (
-                    <li
-                      key={p}
-                      className="flex items-center gap-2 text-xs text-[color:var(--text-muted)]"
-                    >
-                      <CheckCircle2 size={12} className="text-[color:var(--success)] shrink-0" />
-                      {p}
-                    </li>
-                  ))}
+
+                <div className="border-t border-line-subtle pt-2.5">
+                  <div className="flex items-center justify-between px-2 py-1 text-xs text-fg-secondary">
+                    <span>Dependency score</span>
+                    <Badge tone="success">CDS {activePreview.cds}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conversation column preview */}
+              <div className="flex flex-col bg-canvas">
+                <div className="flex items-center justify-between border-b border-line-subtle px-4 py-2.5">
+                  <span className="text-sm font-semibold text-fg">
+                    {activePreview.topic}
+                  </span>
+                  <span className="text-xs text-fg-muted">
+                    Hint {activePreview.hintLevel}
+                  </span>
+                </div>
+
+                <div className="space-y-5 p-4 md:p-6">
+                  {activePreview.turns.map((turn, idx) =>
+                    turn.role === "student" ? (
+                      <div key={idx} className="flex justify-end">
+                        <div className="max-w-[80%] rounded-2xl bg-surface px-4 py-2.5 text-sm leading-relaxed text-fg">
+                          {turn.text}
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={idx} className="flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0">
+                          <Logo size={24} />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="text-xs font-medium text-accent-fg">
+                            {turn.label}
+                          </div>
+                          <p className="text-sm leading-relaxed text-fg">
+                            {turn.text}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="border-t border-line-subtle px-4 py-3 md:px-6">
+                  <div className="flex items-center justify-between rounded-3xl border border-line bg-surface px-4 py-2">
+                    <span className="text-xs text-fg-muted">
+                      Ask a question or paste your code attempt…
+                    </span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-on">
+                      <ArrowUp size={14} aria-hidden="true" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How it works & core pillars */}
+        <section
+          id="how-it-works"
+          className="border-t border-line-subtle py-16 md:py-20"
+        >
+          <div className="mx-auto max-w-5xl px-4 md:px-6 space-y-14">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-fg">
+                How a tutoring session works
+              </h2>
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {WORKFLOW_STEPS.map((s) => (
+                  <div key={s.step} className="border-t border-line-subtle pt-4">
+                    <div className="font-mono text-xs text-fg-muted">
+                      0{s.step}
+                    </div>
+                    <h3 className="mt-1.5 text-[15px] font-semibold text-fg">
+                      {s.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-fg-secondary">
+                      {s.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-fg">
+                Built for programming coursework
+              </h2>
+              <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+                {CORE_PILLARS.map((item) => (
+                  <div key={item.title} className="border-t border-line-subtle pt-4">
+                    <h3 className="text-base font-semibold text-fg">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-fg-secondary">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Students & Instructors */}
+        <section
+          id="courses"
+          className="border-t border-line-subtle bg-sidebar py-16 md:py-20"
+        >
+          <div className="mx-auto max-w-5xl px-4 md:px-6">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+              <div>
+                <h2 className="text-lg font-semibold text-fg">For students</h2>
+                <ul className="mt-3 space-y-2 text-sm text-fg-secondary">
+                  <li>· Real-time Socratic chat with Python syntax and AST checks</li>
+                  <li>· 5-level progressive hint ladder gated by your own attempts</li>
+                  <li>· Personal Cognitive Dependency Score (CDS) and reflection journal</li>
+                  <li>· Self-paced practice tracks and university course enrollment</li>
                 </ul>
               </div>
-            </Reveal>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
-
-// =============================================================================
-// HOW IT WORKS
-// =============================================================================
-function HowItWorks() {
-  const steps = [
-    {
-      n: "01",
-      title: "Ask",
-      body: "Type a question or submit your code just like you would with any AI tutor.",
-      icon: BookOpen,
-    },
-    {
-      n: "02",
-      title: "Attempt",
-      body: "Show your thinking — a guess, a partial answer, a bug. Any genuine attempt counts.",
-      icon: Target,
-    },
-    {
-      n: "03",
-      title: "Get Guided",
-      body: "Receive a Socratic question or a progressive hint that fits exactly where you are.",
-      icon: Sparkles,
-    },
-    {
-      n: "04",
-      title: "Reflect",
-      body: "End each session by writing what you learned and what mistake you'll avoid next.",
-      icon: NotebookPen,
-    },
-  ];
-
-  return (
-    <section id="how" className="relative py-16 md:py-24">
-      <div className="max-w-6xl mx-auto px-4 md:px-6">
-        <Reveal>
-          <div className="text-center mb-10 md:mb-14">
-            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-subtle)] mb-2">
-              How It Works
-            </p>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight">
-              From question to <span className="gradient-text">understanding</span>
-            </h2>
-          </div>
-        </Reveal>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-          {steps.map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <Reveal key={s.n} delay={i * 0.1}>
-                <div className="relative h-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 hover:border-[color:var(--border-2)] transition-colors">
-                  <div className="text-[44px] leading-none font-black text-[color:var(--border-2)] absolute top-4 right-4 select-none">
-                    {s.n}
-                  </div>
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[color:var(--primary)]/15 text-[color:var(--primary-hi)] mb-4">
-                    <Icon size={18} />
-                  </div>
-                  <h3 className="text-base font-bold mb-1.5">{s.title}</h3>
-                  <p className="text-xs text-[color:var(--text-muted)] leading-relaxed">
-                    {s.body}
-                  </p>
-                </div>
-              </Reveal>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-// =============================================================================
-// FOR STUDENTS / FOR INSTRUCTORS
-// =============================================================================
-function ForYou() {
-  const cards = [
-    {
-      icon: GraduationCap,
-      tone: "primary",
-      title: "For Students",
-      tagline: "Learn deeply, on your own terms",
-      points: [
-        "Personalized Socratic questions based on your weak topics",
-        "Hint levels that respect how much you've tried",
-        "See your dependency score and watch it drop as you improve",
-        "Reflect after each session and keep a learning journal",
-      ],
-    },
-    {
-      icon: Presentation,
-      tone: "violet",
-      title: "For Instructors",
-      tagline: "See who needs help — before the exam",
-      points: [
-        "Course-wide dependency heatmap updated in real time",
-        "Weak topic detection across your entire class",
-        "Per-student drill-down: sessions, quizzes, reflections",
-        "Export PDF reports for advisory meetings",
-      ],
-    },
-  ];
-
-  const TONE_BG = {
-    primary: "bg-[#6366F1]/15 text-[#818CF8]",
-    violet: "bg-[#8B5CF6]/15 text-[#A78BFA]",
-  };
-
-  return (
-    <section id="for" className="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24">
-      <Reveal>
-        <div className="text-center mb-10 md:mb-14">
-          <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-subtle)] mb-2">
-            Built For You
-          </p>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight">
-            One platform, <span className="gradient-text">two experiences</span>
-          </h2>
-        </div>
-      </Reveal>
-
-      <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-        {cards.map((c, i) => {
-          const Icon = c.icon;
-          return (
-            <Reveal key={c.title} delay={i * 0.1}>
-              <div className="h-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 md:p-7 hover:border-[color:var(--border-2)] transition-colors">
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${TONE_BG[c.tone]}`}
-                >
-                  <Icon size={24} />
-                </div>
-                <h3 className="text-lg md:text-xl font-black mb-1">{c.title}</h3>
-                <p className="text-sm text-[color:var(--primary-hi)] font-medium mb-4">
-                  {c.tagline}
-                </p>
-                <ul className="space-y-2.5">
-                  {c.points.map((p) => (
-                    <li
-                      key={p}
-                      className="flex items-start gap-2 text-sm text-[color:var(--text-muted)] leading-snug"
-                    >
-                      <CheckCircle2
-                        size={14}
-                        className="text-[color:var(--success)] shrink-0 mt-0.5"
-                      />
-                      {p}
-                    </li>
-                  ))}
+              <div>
+                <h2 className="text-lg font-semibold text-fg">For instructors</h2>
+                <ul className="mt-3 space-y-2 text-sm text-fg-secondary">
+                  <li>· Course creation with 6-character student join codes</li>
+                  <li>· Cohort roster highlighting high-reliance trends</li>
+                  <li>· Topic-by-topic dependency heatmap across course modules</li>
+                  <li>· PDF cohort audit export</li>
                 </ul>
               </div>
-            </Reveal>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-
-// =============================================================================
-// STATS
-// =============================================================================
-function Stats() {
-  const stats = [
-    { v: "9", label: "AI Agents", icon: Brain },
-    { v: "5", label: "Hint Levels", icon: Layers },
-    { v: "6", label: "CDS Signals", icon: Gauge },
-    { v: "100%", label: "Private", icon: Users },
-  ];
-
-  return (
-    <section className="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-20">
-      <Reveal>
-        <div className="rounded-3xl border border-[color:var(--border-2)] p-8 md:p-10 relative overflow-hidden"
-          style={{ background: "var(--surface)" }}
-        >
-          <div
-            aria-hidden
-            className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none"
-            style={{ background: "radial-gradient(circle, #8B5CF6 0%, transparent 70%)" }}
-          />
-          <div className="relative">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-center mb-8 md:mb-10 tracking-tight">
-              Built for university programming courses
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6">
-              {stats.map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={s.label} className="text-center" style={{ animation: `ccFadeUp 0.7s ease ${i * 0.08}s both` }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 bg-[color:var(--primary)]/15 text-[color:var(--primary-hi)]">
-                      <Icon size={18} />
-                    </div>
-                    <div className="text-2xl md:text-3xl lg:text-4xl font-black gradient-text">
-                      {s.v}
-                    </div>
-                    <div className="text-xs text-[color:var(--text-muted)] mt-1">
-                      {s.label}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
-        </div>
-      </Reveal>
-    </section>
-  );
-}
-
-
-// =============================================================================
-// FINAL CTA
-// =============================================================================
-function FinalCTA() {
-  return (
-    <section className="max-w-6xl mx-auto px-4 md:px-6 py-16 md:py-24">
-      <Reveal>
-        <div
-          className="relative rounded-3xl overflow-hidden p-8 md:p-14 text-center"
-          style={{ background: "var(--gradient-primary)" }}
-        >
-          <div
-            aria-hidden
-            className="absolute inset-0 opacity-30 pointer-events-none"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.3) 0%, transparent 40%)",
-            }}
-          />
-          <div className="relative">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight mb-3">
-              Ready to actually learn?
-            </h2>
-            <p className="text-white/80 max-w-xl mx-auto mb-7 text-sm md:text-base">
-              Join CogniCode and turn AI from a shortcut into a teacher.
-              Free for students. Open to all institutions.
-            </p>
-            <Link to={ROUTES.REGISTER}>
-              <Button
-                size="md"
-                className="!bg-white !text-[color:var(--text)] hover:!opacity-95"
-              >
-                Create Free Account
-                <ArrowRight size={16} />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </Reveal>
-    </section>
-  );
-}
-
-
-// =============================================================================
-// FOOTER
-// =============================================================================
-function Footer() {
-  return (
-    <footer className="border-t border-[color:var(--border)] mt-8">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <Logo size={26} withWordmark />
-          <p className="text-xs text-[color:var(--text-subtle)] text-center md:text-right">
-            BSEF23-63 · PUCIT FYP 2026 · Supervisor: Sanam Ahmad
-            <br />
-            A Cognitive-Aware AI Teaching Assistant for Programming Education
-          </p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-
-// =============================================================================
-// PAGE
-// =============================================================================
-export default function Landing() {
-  return (
-    <div className="min-h-screen bg-[color:var(--bg)] text-[color:var(--text)]">
-      <Navbar />
-      <main>
-        <Hero />
-        <Problem />
-        <Features />
-        <HowItWorks />
-        <ForYou />
-        <Stats />
-        <FinalCTA />
+        </section>
       </main>
-      <Footer />
+
+      {/* Footer */}
+      <footer className="border-t border-line-subtle bg-canvas py-8">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 text-xs text-fg-muted sm:flex-row md:px-6">
+          <Logo size={20} withWordmark />
+          <div>
+            BSEF23-63 · PUCIT · Supervised by Sanam Ahmad
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

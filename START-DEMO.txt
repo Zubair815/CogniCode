@@ -1,25 +1,21 @@
-CogniCode demo startup
-=====================
+CogniCode Local Startup
+=======================
 
-Open two PowerShell windows:
+Open two PowerShell terminals:
 
-Window 1 - backend:
+Terminal 1 - Backend (FastAPI + LangGraph):
   cd D:\CogniCode
   .\start-backend.ps1
 
-Window 2 - frontend:
+Terminal 2 - Frontend (React + Vite):
   cd D:\CogniCode
   .\start-frontend.ps1
 
-Open http://localhost:5173
+Open http://localhost:5173 in your browser.
 
-The backend uses a local SQLite demo database at backend/cognicode.db; no
-PostgreSQL installation is needed. Accounts and tutoring sessions persist
-between restarts. AI chat is configured for Groq. Before using it, put your
-Groq API key on the LLM_API_KEY line in backend/.env, then restart the backend.
-Keep the key private; API usage is subject to your Groq account limits and terms.
-
-For the demo: register a student account, start a topic such as “Recursion”,
-show the saved session in Recent sessions, and open it. Without a Groq key,
-session creation still works but AI replies will be unavailable. Instructor
-analytics are not implemented on this branch.
+Notes:
+- The backend defaults to a local SQLite database at backend/cognicode.db and
+  persists vector memory at backend/data/chroma.
+- AI tutoring is configured via backend/.env (LLM_PROVIDER=groq and LLM_API_KEY).
+- On /login, you can sign in with a registered Student or Instructor account,
+  or use the one-click "Student demo" and "Instructor demo" buttons.

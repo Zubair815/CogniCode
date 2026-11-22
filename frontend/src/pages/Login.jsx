@@ -1,81 +1,118 @@
 /**
  * Login page.
- *
  * Route: /login
  *
- * Behavior:
- *   - Accepts email + password.
- *   - Password field has show/hide toggle.
- *   - "Forgot password?" link is always visible.
- *   - On success, redirects by role.
- *
- * Created: 10/10/2026
- * Updated: 10/10/2026
+ * Includes:
+ *   - Student / Instructor role selector
+ *   - Standard email + password authentication
+ *   - One-click demo workspace sign-in for both Student and Instructor
  */
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../components/layout/AuthLayout.jsx";
+import Alert from "../components/ui/Alert.jsx";
 import Button from "../components/ui/Button.jsx";
 import Input from "../components/ui/Input.jsx";
+import SegmentedControl from "../components/ui/SegmentedControl.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { ROUTES } from "../constants/routes.js";
 
+const ROLES = [
+  { value: "student", label: "Student" },
+  { value: "instructor", label: "Instructor" },
+];
+
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginAsDemo } = useAuth();
 
+  const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [demoRoleLoading, setDemoRoleLoading] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+      setError("Enter your email address and password.");
       return;
     }
 
     setLoading(true);
     try {
       const user = await login({ identifier: email.trim(), password });
+      if (user.role !== role) {
+        setError(
+          `This email is registered as a ${user.role} account. Switch the tab above to "${
+            user.role === "instructor" ? "Instructor" : "Student"
+          }", or click "${
+            role === "instructor" ? "Instructor demo" : "Student demo"
+          }" below to open the ${role} workspace.`
+        );
+        return;
+      }
       navigate(
-        user.role === "student"
-          ? ROUTES.STUDENT_DASHBOARD
-          : ROUTES.INSTRUCTOR_DASHBOARD,
+        user.role === "instructor"
+          ? ROUTES.INSTRUCTOR_DASHBOARD
+          : ROUTES.STUDENT_DASHBOARD,
         { replace: true }
       );
     } catch (err) {
-      setError(err.message || "Login failed.");
+      setError(
+        err.message || "Unable to sign in. Verify your credentials and try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDemoLogin = async (targetRole) => {
+    setError("");
+    setDemoRoleLoading(targetRole);
+    try {
+      const user = await loginAsDemo(targetRole);
+      navigate(
+        user.role === "instructor"
+          ? ROUTES.INSTRUCTOR_DASHBOARD
+          : ROUTES.STUDENT_DASHBOARD,
+        { replace: true }
+      );
+    } catch (err) {
+      setError(err.message || "Unable to open demo workspace.");
+    } finally {
+      setDemoRoleLoading("");
+    }
+  };
+
   return (
-    <AuthLayout>
-      <div
-        className="text-center mb-6"
-        style={{ animation: "ccFadeUp 0.5s ease both" }}
-      >
-        <h2 className="text-lg md:text-xl font-extrabold tracking-tight">
-          Welcome back 👋
-        </h2>
-        <p className="text-xs md:text-sm text-[color:var(--text-muted)] mt-1">
-          Sign in to continue your session
-        </p>
+    <AuthLayout title="Sign in">
+      {/* Student / Instructor role selector */}
+      <div className="mb-5">
+        <SegmentedControl
+          label="Sign in role"
+          options={ROLES}
+          value={role}
+          onChange={setRole}
+          fullWidth
+        />
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <Input
           id="email"
-          label="Email"
+          label={role === "instructor" ? "Instructor email" : "Student email"}
           type="email"
-          placeholder="you@university.edu"
+          placeholder={
+            role === "instructor"
+              ? "instructor@university.edu"
+              : "student@university.edu"
+          }
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
@@ -86,40 +123,72 @@ export default function Login() {
           id="password"
           label="Password"
           type="password"
-          placeholder="••••••••"
+          placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
         />
 
-        {/* Forgot password — always visible */}
-        <div className="flex justify-end -mt-1.5 mb-3">
+        <div className="-mt-2 mb-4 flex justify-end">
           <Link
             to={ROUTES.FORGOT_PASSWORD}
-            className="text-xs font-medium text-[color:var(--text-muted)] hover:text-[color:var(--primary-hi)] transition-colors"
+            className="text-xs font-medium text-fg-secondary hover:text-fg transition-colors"
           >
             Forgot password?
           </Link>
         </div>
 
         {error && (
-          <div className="mb-3 px-3 py-2 rounded-lg bg-[color:var(--danger)]/10 border border-[color:var(--danger)]/30 text-xs font-medium text-[color:var(--danger)]">
+          <Alert tone="danger" className="mb-4">
             {error}
-          </div>
+          </Alert>
         )}
 
-        <Button type="submit" fullWidth loading={loading}>
-          {loading ? "Signing in…" : "Sign In"}
+        <Button type="submit" fullWidth size="lg" loading={loading}>
+          {loading
+            ? "Signing in…"
+            : role === "instructor"
+            ? "Continue as instructor"
+            : "Continue as student"}
         </Button>
       </form>
 
-      <p className="mt-5 text-xs md:text-sm text-center text-[color:var(--text-muted)]">
-        New here?{" "}
+      {/* Quick demo access for Student and Instructor */}
+      <div className="mt-5 border-t border-line-subtle pt-4">
+        <div className="mb-2 text-center text-xs text-fg-muted">
+          Demo accounts
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            loading={demoRoleLoading === "student"}
+            disabled={Boolean(demoRoleLoading) || loading}
+            onClick={() => handleDemoLogin("student")}
+          >
+            Student demo
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            loading={demoRoleLoading === "instructor"}
+            disabled={Boolean(demoRoleLoading) || loading}
+            onClick={() => handleDemoLogin("instructor")}
+          >
+            Instructor demo
+          </Button>
+        </div>
+      </div>
+
+      <p className="mt-5 text-center text-sm text-fg-secondary">
+        Don’t have an account?{" "}
         <Link
           to={ROUTES.REGISTER}
-          className="text-[color:var(--primary-hi)] font-semibold hover:underline"
+          className="font-medium text-accent-fg hover:underline"
         >
-          Create an account →
+          Sign up
         </Link>
       </p>
     </AuthLayout>

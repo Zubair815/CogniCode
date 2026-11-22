@@ -1,37 +1,20 @@
 /**
- * Card
- * ----
- * Glassmorphic surface used across the app for grouping content.
- * The `title` and `actions` props provide a consistent header.
- *
- * Created: 10/10/2026
- * Author: Abdullah (BSEF23M526)
+ * Card — bordered content section. Flat by default: no shadow, no blur.
  */
 
-export default function Card({
-  children,
-  title,
-  actions,
-  padding = "p-5",
-  className = "",
-}) {
+export default function Card({ children, title, description, actions, padding = "p-5", className = "", as: Tag = "section" }) {
   return (
-    <section
-      className={[
-        "rounded-card border border-[color:var(--border)]",
-        "bg-[color:var(--surface)] backdrop-blur-glass",
-        className,
-      ].join(" ")}
-    >
+    <Tag className={["rounded-xl border border-line-subtle bg-canvas", className].join(" ")}>
       {(title || actions) && (
-        <header className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[color:var(--border)]">
-          {title && (
-            <h3 className="text-[13px] font-bold text-[color:var(--text)]">{title}</h3>
-          )}
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+        <header className="flex items-start justify-between gap-3 px-5 pt-4">
+          <div className="min-w-0">
+            {title && <h2 className="text-[15px] font-semibold text-fg">{title}</h2>}
+            {description && <p className="mt-0.5 text-[13px] text-fg-secondary">{description}</p>}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </header>
       )}
       <div className={padding}>{children}</div>
-    </section>
+    </Tag>
   );
 }

@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * AuthContext
- * Created: 10/10/2026
- * Updated: 10/10/2026
+ * -----------
+ * Manages authenticated user session, JWT persistence, and one-click
+ * Student / Instructor demo workspace switching.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -10,12 +12,29 @@ import { onUnauthorized, setToken, getToken, clearToken } from "../services/api.
 
 const AuthContext = createContext(null);
 
+const DEMO_ACCOUNTS = {
+  student: {
+    name: "Abdullah (Student)",
+    email: "demo.student@cognicode.edu",
+    password: "DemoPassword123",
+    role: "student",
+    preferred_language: "Python",
+    institution: "PUCIT",
+  },
+  instructor: {
+    name: "Sanam Ahmad (Instructor)",
+    email: "demo.instructor@cognicode.edu",
+    password: "DemoPassword123",
+    role: "instructor",
+    preferred_language: "Python",
+    institution: "PUCIT",
+  },
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  // When the API fires 401, clear user state so protected routes
-  // redirect to /login.
   useEffect(() => {
     onUnauthorized(() => {
       setUser(null);
@@ -30,7 +49,7 @@ export function AuthProvider({ children }) {
         try {
           const profile = await authService.me();
           setUser(profile);
-        } catch (err) {
+        } catch {
           clearToken();
           setUser(null);
         }
@@ -55,9 +74,44 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Logout is idempotent and never throws.
-   * Even if the server call fails, local state is cleared.
+   * Sign in with a real backend demo account for "student" or "instructor".
+   * Auto-registers the demo account on first use so all backend endpoints
+   * and WebSockets have a valid signed JWT.
    */
+  const loginAsDemo = useCallback(async (targetRole = "student") => {
+    const role = targetRole === "instructor" ? "instructor" : "student";
+    const preset = DEMO_ACCOUNTS[role];
+
+    try {
+      const data = await authService.login({
+        identifier: preset.email,
+        password: preset.password,
+      });
+      setToken(data.access_token);
+      setUser(data.user);
+      return data.user;
+    } catch {
+      try {
+        const data = await authService.register(preset);
+        setToken(data.access_token);
+        setUser(data.user);
+        return data.user;
+      } catch {
+        // Offline fallback so UI preview still works if backend is stopped
+        const fallbackUser = {
+          id: `demo-${role}`,
+          name: preset.name,
+          email: preset.email,
+          role: preset.role,
+          preferred_language: preset.preferred_language,
+          institution: preset.institution,
+        };
+        setUser(fallbackUser);
+        return fallbackUser;
+      }
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -69,8 +123,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, login, register, logout, bootstrapped }),
-    [user, login, register, logout, bootstrapped]
+    () => ({ user, login, register, loginAsDemo, logout, bootstrapped }),
+    [user, login, register, loginAsDemo, logout, bootstrapped]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
