@@ -44,9 +44,13 @@ def _hash_opaque_token(raw_token: str) -> str:
 
 def _cookie_params(request: Request) -> dict:
     settings = get_settings()
-    is_prod = settings.app_env == "production"
-    samesite = (settings.cookie_samesite or ("none" if is_prod else "lax")).lower()
-    secure = settings.cookie_secure if settings.cookie_secure is not None else is_prod
+    is_https = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto", "").lower() == "https"
+    )
+    is_prod_or_https = settings.app_env == "production" or is_https
+    samesite = (settings.cookie_samesite or ("none" if is_prod_or_https else "lax")).lower()
+    secure = settings.cookie_secure if settings.cookie_secure is not None else is_prod_or_https
     if samesite == "none":
         secure = True
     return {

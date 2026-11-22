@@ -41,6 +41,10 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MaxBodySizeMiddleware)
 app.add_middleware(RequestIdMiddleware)
 
+APPROVED_PRODUCTION_ORIGINS = (
+    "https://cognicode-dpq4.vercel.app",
+)
+
 configured_origins = [
     origin.strip().rstrip("/")
     for origin in (settings.frontend_url or "").split(",")
@@ -48,12 +52,15 @@ configured_origins = [
 ]
 
 if settings.app_env == "production":
-    allowed_origins = list(dict.fromkeys(configured_origins))
+    allowed_origins = list(
+        dict.fromkeys([*configured_origins, *APPROVED_PRODUCTION_ORIGINS])
+    )
 else:
     allowed_origins = list(
         dict.fromkeys(
             [
                 *configured_origins,
+                *APPROVED_PRODUCTION_ORIGINS,
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://localhost:3000",

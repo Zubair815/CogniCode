@@ -30,6 +30,29 @@ def test_jwt_handler_refuses_empty_secret(monkeypatch):
         create_access_token(uuid4(), "student", "a@b.com")
 
 
+def test_cors_allows_only_approved_origin_not_wildcards():
+    client = TestClient(app)
+    ok = client.options(
+        "/auth/login",
+        headers={
+            "Origin": "https://cognicode-dpq4.vercel.app",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert ok.status_code == 200
+    assert ok.headers.get("access-control-allow-origin") == "https://cognicode-dpq4.vercel.app"
+
+    bad = client.options(
+        "/auth/login",
+        headers={
+            "Origin": "https://attacker.vercel.app",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert bad.status_code == 400
+    assert "access-control-allow-origin" not in bad.headers
+
+
 def test_cds_zero_session_and_signal_consistency(db_session):
     from core.cds_engine import compute_session_score, get_student_cds_aggregate
     from db.models import Interaction, QuizResult, Session, User
