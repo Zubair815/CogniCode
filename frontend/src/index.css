@@ -308,9 +308,17 @@
     border-radius: var(--radius-sm);
     background: var(--color-surface);
     border: 1px solid var(--color-line-subtle);
+    word-break: break-word;
+  }
+  .prose-chat pre {
+    max-width: 100%;
+    overflow-x: auto;
   }
   .prose-chat table {
+    display: block;
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
     border-collapse: collapse;
     font-size: 0.9375em;
   }
@@ -322,6 +330,15 @@
     vertical-align: top;
   }
   .prose-chat th { font-weight: 600; }
+
+  .h-dvh-screen {
+    height: 100vh;
+    height: 100dvh;
+  }
+  .min-h-dvh-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
 }
 
 

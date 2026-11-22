@@ -108,27 +108,27 @@ export default function Heatmap() {
         <Card title="By topic" padding="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Topic</th>
-                  <th className="px-4 py-3 font-medium">Quiz avg</th>
-                  <th className="px-4 py-3 font-medium">Avg hint depth</th>
-                  <th className="px-4 py-3 font-medium">High dependency</th>
-                  <th className="px-5 py-3 font-medium">Band</th>
+                  <th className="px-3.5 py-3 sm:px-5 font-medium">Topic</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">Quiz avg</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">Avg hint depth</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">High dependency</th>
+                  <th className="px-3.5 py-3 sm:px-5 font-medium">Band</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-subtle">
                 {topics.map((t) => (
-                  <tr key={t.name} className="hover:bg-hover transition-colors">
-                    <td className="px-5 py-3.5 font-medium text-fg">{t.name}</td>
-                    <td className="px-4 py-3.5 font-mono text-fg-secondary">{t.quiz}</td>
-                    <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                  <tr key={t.name} className="hover:bg-hover transition-colors whitespace-nowrap">
+                    <td className="px-3.5 py-3 sm:px-5 sm:py-3.5 font-medium text-fg">{t.name}</td>
+                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">{t.quiz}</td>
+                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary">
                       {t.hint} / 5.0
                     </td>
-                    <td className="px-4 py-3.5 font-mono font-medium text-fg">
+                    <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono font-medium text-fg">
                       {t.highDep}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-3.5 py-3 sm:px-5 sm:py-3.5">
                       <Badge tone={statusTone(t.status)}>
                         {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
                       </Badge>
@@ -144,11 +144,11 @@ export default function Heatmap() {
         <Card title="By student" padding="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Student</th>
+                  <th className="px-3.5 py-3 sm:px-5 font-medium">Student</th>
                   {topics.map((t) => (
-                    <th key={t.name} className="px-3 py-3 text-center font-medium">
+                    <th key={t.name} className="px-2.5 py-3 sm:px-3 text-center font-medium">
                       {t.name}
                     </th>
                   ))}
@@ -157,11 +157,11 @@ export default function Heatmap() {
               <tbody className="divide-y divide-line-subtle">
                 {students.map((s) => (
                   <tr key={s.name} className="hover:bg-hover transition-colors">
-                    <td className="px-5 py-3 font-medium text-fg whitespace-nowrap">
+                    <td className="px-3.5 py-3 sm:px-5 font-medium text-fg whitespace-nowrap">
                       {s.name}
                     </td>
                     {s.scores.map((score, sIdx) => (
-                      <td key={sIdx} className="px-3 py-3 text-center">
+                      <td key={sIdx} className="px-2.5 py-3 sm:px-3 text-center whitespace-nowrap">
                         <Badge tone={statusTone(score)}>{score}</Badge>
                       </td>
                     ))}

@@ -158,7 +158,7 @@ export default function Landing() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <IconButton
               label={theme === "dark" ? "Light mode" : "Dark mode"}
               size="sm"
@@ -169,19 +169,19 @@ export default function Landing() {
 
             {user ? (
               <Link to={primaryDestination}>
-                <Button size="sm" variant="primary">
+                <Button size="sm" variant="primary" className="px-2.5 text-xs sm:px-3 sm:text-sm">
                   Open chat
                 </Button>
               </Link>
             ) : (
               <>
                 <Link to={ROUTES.LOGIN}>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" className="px-2 text-xs sm:px-3 sm:text-sm">
                     Sign in
                   </Button>
                 </Link>
                 <Link to={ROUTES.REGISTER}>
-                  <Button size="sm" variant="primary">
+                  <Button size="sm" variant="primary" className="px-2.5 text-xs sm:px-3 sm:text-sm">
                     Create account
                   </Button>
                 </Link>
@@ -224,7 +224,7 @@ export default function Landing() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-sidebar px-4 py-2.5 text-xs">
               <Logo size={20} withWordmark />
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {PREVIEW_SESSIONS.map((s) => (
                   <button
                     key={s.id}

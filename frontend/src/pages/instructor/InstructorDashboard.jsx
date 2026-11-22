@@ -215,14 +215,14 @@ export default function InstructorDashboard() {
         <Card title="Students" padding="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary">
+              <thead className="border-b border-line-subtle bg-surface text-xs text-fg-secondary whitespace-nowrap">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">CDS</th>
-                  <th className="px-4 py-3 font-medium">Band</th>
-                  <th className="px-4 py-3 font-medium">Avg hint</th>
-                  <th className="px-4 py-3 font-medium">Quiz avg</th>
-                  <th className="px-5 py-3 text-right font-medium">
+                  <th className="px-3.5 py-3 sm:px-5 font-medium">Student</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">CDS</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">Band</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">Avg hint</th>
+                  <th className="px-3 py-3 sm:px-4 font-medium">Quiz avg</th>
+                  <th className="px-3.5 py-3 sm:px-5 text-right font-medium">
                     <span className="sr-only">View student</span>
                   </th>
                 </tr>
@@ -242,25 +242,25 @@ export default function InstructorDashboard() {
                       onClick={() => navigate(ROUTES.INSTRUCTOR_DETAIL)}
                       className="cursor-pointer transition-colors hover:bg-hover"
                     >
-                      <td className="px-5 py-3.5">
-                        <div className="font-medium text-fg">{stu.name}</div>
-                        <div className="font-mono text-xs text-fg-muted">
+                      <td className="px-3.5 py-3 sm:px-5 sm:py-3.5">
+                        <div className="font-medium text-fg whitespace-nowrap">{stu.name}</div>
+                        <div className="font-mono text-xs text-fg-muted whitespace-nowrap">
                           {stu.rollNo}
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 font-mono font-semibold text-fg">
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono font-semibold text-fg whitespace-nowrap">
                         {stu.score}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 whitespace-nowrap">
                         <Badge tone={tone}>{stu.band}</Badge>
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary whitespace-nowrap">
                         {stu.hintAvg}
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-fg-secondary">
+                      <td className="px-3 py-3 sm:px-4 sm:py-3.5 font-mono text-fg-secondary whitespace-nowrap">
                         {stu.quizAvg}
                       </td>
-                      <td className="px-5 py-3.5 text-right text-fg-muted">
+                      <td className="px-3.5 py-3 sm:px-5 sm:py-3.5 text-right text-fg-muted">
                         <ChevronRight size={16} className="inline-block" aria-hidden="true" />
                       </td>
                     </tr>

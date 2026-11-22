@@ -39,7 +39,7 @@ export default function ChatHeader({
 
       {/* Right: Hint level & session actions */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        <span className="hidden sm:inline text-xs text-fg-muted px-1.5">
+        <span className="text-xs text-fg-muted px-1">
           Hint {hintLevel}/5
         </span>
 

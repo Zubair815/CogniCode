@@ -16,9 +16,9 @@ export default function AuthLayout({ title, subtitle, children }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas text-fg">
+    <div className="flex min-h-dvh-screen flex-col bg-canvas text-fg">
       {/* Top minimal bar */}
-      <header className="flex h-header items-center justify-between px-4 md:px-6">
+      <header className="flex h-header shrink-0 items-center justify-between px-4 md:px-6">
         <Link to={ROUTES.LANDING} className="inline-flex items-center">
           <Logo size={26} withWordmark />
         </Link>
@@ -32,10 +32,10 @@ export default function AuthLayout({ title, subtitle, children }) {
       </header>
 
       {/* Centered auth surface */}
-      <main className="flex flex-1 items-center justify-center px-4 py-10">
-        <div className="w-full max-w-[400px]">
+      <main className="flex flex-1 flex-col px-4 py-6 sm:py-10">
+        <div className="my-auto mx-auto w-full max-w-[400px]">
           {(title || subtitle) && (
-            <div className="mb-6 text-center">
+            <div className="mb-5 text-center">
               {title && (
                 <h1 className="text-2xl font-semibold tracking-tight text-fg">
                   {title}
@@ -47,7 +47,7 @@ export default function AuthLayout({ title, subtitle, children }) {
             </div>
           )}
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-6">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-5 sm:p-6">
             {children}
           </div>
         </div>

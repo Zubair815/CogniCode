@@ -45,8 +45,8 @@ export default function MessageList({
   if (messages.length === 0 && !typing) {
     const starters = buildStarterPrompts(topic);
     return (
-      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8">
-        <div className="w-full max-w-content">
+      <div className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
+        <div className="my-auto mx-auto w-full max-w-content">
           <h2 className="text-center text-xl font-semibold tracking-tight text-fg sm:text-2xl">
             {topic || "What are you working on?"}
           </h2>

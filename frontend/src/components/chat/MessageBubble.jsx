@@ -228,7 +228,7 @@ export default function MessageBubble({ role, content, timestamp, intent }) {
   if (isStudent) {
     return (
       <div className="flex flex-col items-end animate-fade-in">
-        <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl bg-surface px-4 py-2.5 text-[15px] leading-relaxed text-fg whitespace-pre-wrap break-words">
+        <div className="max-w-[88%] sm:max-w-[75%] rounded-2xl bg-surface px-4 py-2.5 text-[15px] leading-relaxed text-fg whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {content}
         </div>
         {timestamp && (
@@ -258,7 +258,7 @@ export default function MessageBubble({ role, content, timestamp, intent }) {
             type="button"
             onClick={copyMessage}
             aria-label="Copy response"
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-fg-muted opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-hover hover:text-fg transition-all"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-fg-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 hover:bg-hover hover:text-fg transition-all"
           >
             {copied ? <Check size={12} /> : <Copy size={12} />}
             <span>{copied ? "Copied" : "Copy"}</span>

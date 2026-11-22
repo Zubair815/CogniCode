@@ -86,21 +86,21 @@ export default function SettingsModal({ open, onClose }) {
 
           {activeTab === "account" && (
             <div className="divide-y divide-line-subtle">
-              <div className="flex items-center justify-between pb-3.5">
-                <span className="text-fg-secondary">Name</span>
-                <span className="font-medium text-fg">{user?.name || "—"}</span>
+              <div className="flex items-center justify-between gap-3 pb-3.5">
+                <span className="shrink-0 text-fg-secondary">Name</span>
+                <span className="truncate font-medium text-fg">{user?.name || "—"}</span>
               </div>
-              <div className="flex items-center justify-between py-3.5">
-                <span className="text-fg-secondary">Email</span>
-                <span className="font-mono text-[13px] text-fg">{user?.email || "—"}</span>
+              <div className="flex items-center justify-between gap-3 py-3.5">
+                <span className="shrink-0 text-fg-secondary">Email</span>
+                <span className="truncate font-mono text-[13px] text-fg">{user?.email || "—"}</span>
               </div>
-              <div className="flex items-center justify-between py-3.5">
-                <span className="text-fg-secondary">Role</span>
+              <div className="flex items-center justify-between gap-3 py-3.5">
+                <span className="shrink-0 text-fg-secondary">Role</span>
                 <span className="capitalize text-fg">{user?.role || "student"}</span>
               </div>
-              <div className="flex items-center justify-between pt-3.5">
-                <span className="text-fg-secondary">Institution</span>
-                <span className="text-fg">{user?.institution || "Independent"}</span>
+              <div className="flex items-center justify-between gap-3 pt-3.5">
+                <span className="shrink-0 text-fg-secondary">Institution</span>
+                <span className="truncate text-fg">{user?.institution || "Independent"}</span>
               </div>
             </div>
           )}

@@ -52,8 +52,8 @@ export default function ChatInput({
   };
 
   return (
-    <div className="shrink-0 bg-canvas px-4 pb-4 pt-2 md:px-6">
-      <div className="mx-auto w-full max-w-content">
+    <div className="shrink-0 bg-canvas px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:px-6">
+      <div className="mx-auto w-full max-w-content min-w-0">
         <div
           className={[
             "rounded-3xl border border-line bg-surface px-4 pb-2.5 pt-3 shadow-composer transition-colors duration-fast",

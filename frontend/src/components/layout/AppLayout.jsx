@@ -78,6 +78,22 @@ export default function AppLayout({
     };
   }, [isInstructor, location.pathname]);
 
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    const onResize = () => {
+      if (window.innerWidth >= 1024) setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [mobileOpen]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -150,7 +166,7 @@ export default function AppLayout({
               setMobileOpen(false);
               setSidebarCollapsed(true);
             }}
-            className="hidden md:inline-flex"
+            className="hidden lg:inline-flex"
           >
             <PanelLeftClose size={16} />
           </IconButton>
@@ -321,17 +337,17 @@ export default function AppLayout({
   );
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-canvas text-fg">
-      {/* Desktop sidebar */}
+    <div className="flex h-dvh-screen w-full overflow-hidden bg-canvas text-fg">
+      {/* Desktop / landscape-tablet sidebar (1024px+) */}
       {!sidebarCollapsed && (
-        <aside className="hidden md:flex md:w-sidebar md:shrink-0 md:flex-col border-r border-line-subtle">
+        <aside className="hidden lg:flex lg:w-sidebar lg:shrink-0 lg:flex-col border-r border-line-subtle">
           {sidebarContent}
         </aside>
       )}
 
-      {/* Mobile slide-over drawer */}
+      {/* Mobile & portrait-tablet slide-over drawer (<1024px) */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-overlay flex md:hidden">
+        <div className="fixed inset-0 z-overlay flex lg:hidden">
           <div
             className="fixed inset-0 bg-overlay animate-fade-in"
             onClick={() => setMobileOpen(false)}
@@ -348,7 +364,7 @@ export default function AppLayout({
         <header
           className={[
             "flex h-header shrink-0 items-center justify-between gap-2 border-b border-line-subtle bg-canvas px-3 md:px-4",
-            !headerSlot && !sidebarCollapsed ? "md:hidden" : "",
+            !headerSlot && !sidebarCollapsed ? "lg:hidden" : "",
           ].join(" ")}
         >
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -356,13 +372,13 @@ export default function AppLayout({
               label="Open navigation"
               size="sm"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden"
+              className="lg:hidden"
             >
               <PanelLeft size={18} />
             </IconButton>
 
             {sidebarCollapsed && (
-              <div className="hidden md:flex items-center gap-1">
+              <div className="hidden lg:flex items-center gap-1">
                 <IconButton
                   label="Expand sidebar"
                   size="sm"
