@@ -22,6 +22,7 @@ import string
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
 from auth.dependencies import get_current_user, require_role
@@ -105,20 +106,50 @@ def create_course(
     current_user: User = Depends(require_role("instructor")),
     db: DBSession = Depends(get_db),
 ) -> CourseResponse:
-    code = payload.course_code.upper() if payload.course_code else _generate_course_code()
-    existing = db.query(InstructorCourse).filter(InstructorCourse.course_code == code).first()
-    if existing:
+    course_name = payload.course_name.strip()
+    if len(course_name) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Course name must be at least 3 characters.",
+        )
+
+    if payload.course_code and payload.course_code.strip():
+        code = payload.course_code.strip().upper()
+        if len(code) < 4:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Course code must be at least 4 characters.",
+            )
+        existing = db.query(InstructorCourse).filter(InstructorCourse.course_code == code).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Course code '{code}' is already in use.",
+            )
+    else:
         code = _generate_course_code()
+        for _ in range(5):
+            existing = db.query(InstructorCourse).filter(InstructorCourse.course_code == code).first()
+            if not existing:
+                break
+            code = _generate_course_code()
 
     course = InstructorCourse(
         instructor_id=current_user.id,
-        course_name=payload.course_name,
+        course_name=course_name,
         course_code=code,
-        description=payload.description,
+        description=payload.description.strip() if payload.description else None,
         enrolled_students=[],
     )
     db.add(course)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Course code '{code}' is already in use.",
+        )
     db.refresh(course)
 
     return CourseResponse(
@@ -212,18 +243,30 @@ def get_cohort_analytics(
     scores = []
     dist = {"low": 0, "moderate": 0, "high": 0}
 
+    student_ids = [s.id for s in students]
+    all_sessions = (
+        db.query(Session)
+        .filter(Session.student_id.in_(student_ids))
+        .all()
+    )
+    sessions_by_student: dict[UUID, list[Session]] = {sid: [] for sid in student_ids}
+    for sess in all_sessions:
+        sessions_by_student.setdefault(sess.student_id, []).append(sess)
+
     for s in students:
-        summary = get_student_cds_aggregate(s.id, db)
-        score = summary.overall_score
-        band = summary.risk_band
+        sessions = sessions_by_student.get(s.id, [])
+        summary = get_student_cds_aggregate(s.id, db, sessions=sessions)
+        score = summary.score
+        band = summary.band
         scores.append(score)
         dist[band] = dist.get(band, 0) + 1
 
-        # Sessions for student to find topics
-        sessions = db.query(Session).filter(Session.student_id == s.id).all()
-        struggling_topics = [sess.topic for sess in sessions if sess.dependency_score > 60.0]
+        struggling_topics = [
+            sess.topic for sess in sessions
+            if (sess.dependency_score or 0.0) > 60.0
+        ]
         max_h = max([max(sess.hint_levels_used or [0]) for sess in sessions], default=0)
-        sol_asks = sum(sess.solution_requests for sess in sessions)
+        sol_asks = sum((sess.solution_requests or 0) for sess in sessions)
 
         if band == "high" or score >= 65.0:
             high_risk.append(
@@ -285,16 +328,16 @@ def get_student_detail(
     db: DBSession = Depends(get_db),
 ) -> StudentDetailResponse:
     student = db.get(User, student_id)
-    if not student:
+    if not student or student.role != "student":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found.")
 
-    summary = get_student_cds_aggregate(student.id, db)
     sessions = (
         db.query(Session)
         .filter(Session.student_id == student.id)
         .order_by(Session.started_at.desc())
         .all()
     )
+    summary = get_student_cds_aggregate(student.id, db, sessions=sessions)
 
     session_summaries = [
         StudentSessionSummary(
@@ -331,9 +374,9 @@ def get_student_detail(
         name=student.name,
         email=student.email,
         preferred_language=student.preferred_language or "Python",
-        overall_cds=summary.overall_score,
-        risk_band=summary.risk_band,
-        signals=summary.signals,
+        overall_cds=summary.score,
+        risk_band=summary.band,
+        signals=summary.breakdown,
         sessions=session_summaries,
         reflections=ref_list,
     )
@@ -432,9 +475,18 @@ def get_student_reflections(
         .order_by(Reflection.created_at.desc())
         .all()
     )
+    if not reflections:
+        return []
+
+    session_ids = list({r.session_id for r in reflections})
+    sessions_map = {
+        s.id: s
+        for s in db.query(Session).filter(Session.id.in_(session_ids)).all()
+    }
+
     result = []
     for r in reflections:
-        sess = db.get(Session, r.session_id)
+        sess = sessions_map.get(r.session_id)
         topic_name = sess.topic if sess else "General Programming"
         result.append(
             ReflectionResponse(
@@ -463,6 +515,11 @@ async def generate_reflection_draft(
     sess = db.get(Session, session_id)
     if not sess:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    if sess.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this session.",
+        )
 
     draft = await _reflection_agent.generate_draft(
         topic=sess.topic,
@@ -494,6 +551,11 @@ def submit_reflection(
     sess = db.get(Session, session_id)
     if not sess:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    if sess.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this session.",
+        )
 
     existing = db.query(Reflection).filter(Reflection.session_id == session_id).first()
     if existing:

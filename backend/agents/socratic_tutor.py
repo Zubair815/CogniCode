@@ -76,6 +76,9 @@ class SocraticTutor:
             status=status,
             no_code_rule=no_code_rule
         )
+        guidance = state.get("system_guidance")
+        if guidance:
+            system_prompt += f"\n\nStudent Memory & Pedagogical Context:\n{guidance}"
 
         history_text = ""
         for msg in state.get("history", []):

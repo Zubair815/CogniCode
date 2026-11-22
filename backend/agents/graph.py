@@ -65,7 +65,13 @@ async def socratic_tutor_node(state: AgentState) -> AgentState:
 
 
 async def hint_generator_node(state: AgentState) -> AgentState:
-    return await _hint_generator.process(state)
+    state = await _hint_generator.process(state)
+    if state.get("understanding_check_required") and not state.get("quiz_question"):
+        intro = state.get("response", "")
+        state = await _assessment_agent.process(state)
+        if intro:
+            state["response"] = f"{intro}\n\n{state['response']}"
+    return state
 
 
 async def assessment_node(state: AgentState) -> AgentState:

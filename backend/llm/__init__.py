@@ -15,9 +15,6 @@ from llm.claude_client import ClaudeClient
 from llm.groq_client import GroqClient
 
 
-_settings = get_settings()
-
-
 def get_llm_client() -> LLMClient:
     """
     Return the configured LLM client.
@@ -25,7 +22,8 @@ def get_llm_client() -> LLMClient:
     Reads LLM_PROVIDER from settings each call so tests can swap
     the provider without restarting the app.
     """
-    provider = (_settings.llm_provider or "ollama").lower()
+    settings = get_settings()
+    provider = (settings.llm_provider or "ollama").lower()
     if provider == "claude":
         return ClaudeClient()
     if provider == "groq":

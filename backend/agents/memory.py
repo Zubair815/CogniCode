@@ -29,9 +29,10 @@ class StudentMemoryAgent:
         """
         Queries past student learning signals to formulate personalized tutoring context.
         """
-        student_id = str(state.get("user_id", ""))
+        student_id = str(state.get("student_id") or state.get("user_id") or "")
         topic = state.get("topic", "Programming")
-        student_code = state.get("student_code", "")
+        code_meta = (state.get("metadata") or {}).get("code_analysis") or {}
+        student_code = state.get("student_code") or code_meta.get("code_raw") or ""
 
         if not student_id:
             return {}

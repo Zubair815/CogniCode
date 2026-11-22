@@ -36,11 +36,16 @@ class FastLocalEmbeddingFunction(EmbeddingFunction[Documents]):
     def __init__(self):
         pass
 
-    def name(self) -> str:
+    @staticmethod
+    def name() -> str:
         return "fast_local"
 
     def get_config(self) -> dict:
         return {}
+
+    @staticmethod
+    def build_from_config(config: dict) -> "FastLocalEmbeddingFunction":
+        return FastLocalEmbeddingFunction()
 
     def __call__(self, input: Documents) -> Embeddings:
         embeddings = []

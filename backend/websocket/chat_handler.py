@@ -29,7 +29,9 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session as DBSession
 
 from agents import tutoring_graph, new_state
+from agents.assessment import AssessmentAgent
 from auth.jwt_handler import TokenError, decode_access_token
+from core.cds_engine import compute_session_score
 from db.models import Interaction, Session, User
 from db.session import SessionLocal
 from llm import LLMError
@@ -39,6 +41,7 @@ from websocket.connection_manager import manager
 logger = logging.getLogger("cognicode.websocket")
 
 router = APIRouter()
+_assessment_agent = AssessmentAgent()
 
 # =============================================================================
 # HELPERS
@@ -65,11 +68,8 @@ def _load_session(session_id: UUID, user: User, db: DBSession) -> Session:
     return session
 
 
-def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
-    """
-    Return the last N interactions formatted for the agent context.
-    We fetch the most recent rows, then reverse to chronological order.
-    """
+def _recent_interactions(db: DBSession, session_id: UUID, limit: int = 6) -> list[Interaction]:
+    """Return the last N interactions in chronological order (oldest first)."""
     rows = (
         db.query(Interaction)
         .filter(Interaction.session_id == session_id)
@@ -77,8 +77,16 @@ def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
         .limit(limit)
         .all()
     )
-    rows.reverse()  # chronological order (oldest first)
+    rows.reverse()
+    return rows
 
+
+def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
+    """
+    Return the last N interactions formatted for the agent context.
+    We fetch the most recent rows, then reverse to chronological order.
+    """
+    rows = _recent_interactions(db, session_id, limit=limit)
     history = []
     for row in rows:
         history.append({"role": "student", "content": row.message})
@@ -186,6 +194,10 @@ async def chat_websocket(
                 if session.ended_at is None:
                     session.ended_at = datetime.now(timezone.utc)
                     db.commit()
+                    try:
+                        compute_session_score(session, db)
+                    except Exception:
+                        logger.warning("Failed to compute CDS on session_end for %s", session.id)
                 await manager.send_to(session_id, websocket, {
                     "type": "session_ended",
                     "session_id": str(session.id),
@@ -242,15 +254,31 @@ async def _handle_chat(
     """
     await manager.send_to(session_id, websocket, {"type": "typing"})
 
+    recent_rows = _recent_interactions(db, session.id, limit=6)
+    history = []
+    for row in recent_rows:
+        history.append({"role": "student", "content": row.message})
+        history.append({"role": "assistant", "content": row.response})
+
     state = new_state(
         student_id=str(user.id),
         session_id=str(session.id),
         topic=session.topic,
         message=content,
-        history=_recent_history(db, session.id),
+        history=history,
         preferred_language=user.preferred_language or "Python",
         current_hint_level=getattr(session, "max_hint_level", 0) or 0,
     )
+
+    # Restore multi-turn conceptual check state from recent session interactions
+    if any("Concept Check Passed" in (r.response or "") for r in recent_rows):
+        state["understanding_check_passed"] = True
+    elif recent_rows and (
+        "Conceptual Understanding Check" in (recent_rows[-1].response or "")
+        or "unlock Level 3" in (recent_rows[-1].response or "")
+    ):
+        state["understanding_check_required"] = True
+        state["quiz_question"] = _assessment_agent.get_or_generate_question(session.topic)
 
     # Execute multi-agent LangGraph orchestration
     try:
@@ -275,6 +303,14 @@ async def _handle_chat(
     response_text = state.get("response") or "(no response)"
     hint_level_given = state.get("current_hint_level") or None
 
+    now_utc = datetime.now(timezone.utc)
+    time_since_last = None
+    if recent_rows and recent_rows[-1].timestamp:
+        prev_ts = recent_rows[-1].timestamp
+        if prev_ts.tzinfo is None:
+            prev_ts = prev_ts.replace(tzinfo=timezone.utc)
+        time_since_last = max(0, int((now_utc - prev_ts).total_seconds()))
+
     # Persist interaction
     interaction = Interaction(
         session_id=session.id,
@@ -284,18 +320,24 @@ async def _handle_chat(
         intent=_map_intent(state.get("intent")),
         attempt_detected=state.get("attempt_detected", False),
         hint_level_given=hint_level_given,
+        time_since_last=time_since_last,
     )
     db.add(interaction)
 
     # Update session aggregates
     if state.get("intent") == "code_request":
         session.solution_requests = (session.solution_requests or 0) + 1
+    if state.get("attempt_detected"):
+        session.retry_count = (session.retry_count or 0) + 1
+    if state.get("intent") == "debug":
+        session.debugging_attempts = (session.debugging_attempts or 0) + 1
     if hint_level_given and hint_level_given > (getattr(session, "max_hint_level", 0) or 0):
         session.max_hint_level = hint_level_given
 
     try:
         db.commit()
         db.refresh(interaction)
+        compute_session_score(session, db)
     except Exception:
         db.rollback()
         logger.exception("Failed to persist interaction")

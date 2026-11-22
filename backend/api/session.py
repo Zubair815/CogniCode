@@ -200,6 +200,7 @@ def end_session(
     if session.ended_at is None:
         session.ended_at = datetime.now(timezone.utc)
         db.commit()
+        compute_session_score(session, db)
         db.refresh(session)
 
     return SessionResponse.model_validate(session)

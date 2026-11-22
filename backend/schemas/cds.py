@@ -27,6 +27,18 @@ class CDSScoreResponse(BaseModel):
     total_sessions: int = Field(default=0, ge=0)
     weak_topics: list[str] = Field(default_factory=list)
 
+    @property
+    def overall_score(self) -> float:
+        return self.score
+
+    @property
+    def risk_band(self) -> str:
+        return self.band
+
+    @property
+    def signals(self) -> CDSSignalBreakdown:
+        return self.breakdown
+
 
 class SessionCDSDetailResponse(BaseModel):
     """Per-session dependency score and telemetry breakdown."""

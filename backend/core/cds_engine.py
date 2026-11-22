@@ -116,13 +116,18 @@ def compute_session_score(session: Session, db: DBSession) -> tuple[float, str, 
     return score, band, signals
 
 
-def get_student_cds_aggregate(student_id: UUID, db: DBSession) -> CDSScoreResponse:
+def get_student_cds_aggregate(
+    student_id: UUID,
+    db: DBSession,
+    sessions: list[Session] | None = None,
+) -> CDSScoreResponse:
     """Aggregate CDS score across all sessions for a student."""
-    sessions = (
-        db.query(Session)
-        .filter(Session.student_id == student_id)
-        .all()
-    )
+    if sessions is None:
+        sessions = (
+            db.query(Session)
+            .filter(Session.student_id == student_id)
+            .all()
+        )
 
     if not sessions:
         return CDSScoreResponse(
@@ -160,12 +165,21 @@ def get_student_cds_aggregate(student_id: UUID, db: DBSession) -> CDSScoreRespon
         if s.dependency_band == "high" or (s.dependency_score and s.dependency_score > 60)
     ]
 
+    sol_freq = min(
+        100.0,
+        round(sum((s.solution_requests or 0) for s in sessions) / max(1, len(sessions)) * 10, 1),
+    )
+    hint_d = min(
+        100.0,
+        round(sum((s.max_hint_level or 1) for s in sessions) / max(1, len(sessions)) * 20, 1),
+    )
+
     return CDSScoreResponse(
         score=avg_score,
         band=band,
         breakdown=CDSSignalBreakdown(
-            solution_frequency=round(sum((s.solution_requests or 0) for s in sessions) / max(1, len(sessions)) * 10, 1),
-            hint_depth=round(sum((s.max_hint_level or 1) for s in sessions) / max(1, len(sessions)) * 20, 1),
+            solution_frequency=sol_freq,
+            hint_depth=hint_d,
             retry_count=35.0,
             time_gap=40.0,
             debugging_attempts=30.0,
