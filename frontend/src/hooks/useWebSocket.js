@@ -32,10 +32,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getToken } from "../services/api.js";
 
 function resolveWsBaseUrl() {
+  const defaultBase =
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+      ? "wss://cognicode-2uj7.onrender.com"
+      : "ws://localhost:8000";
   const raw =
     import.meta.env.VITE_WS_BASE_URL ||
     import.meta.env.VITE_API_BASE_URL ||
-    "ws://localhost:8000";
+    defaultBase;
   return raw
     .trim()
     .replace(/\/+$/, "")
