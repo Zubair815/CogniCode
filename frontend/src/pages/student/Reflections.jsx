@@ -6,6 +6,7 @@ import Alert from "../../components/ui/Alert.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
+import { fieldClasses } from "../../components/ui/Input.jsx";
 import Textarea from "../../components/ui/Textarea.jsx";
 import { chatService } from "../../services/chatService.js";
 import { instructorService } from "../../services/instructorService.js";
@@ -197,7 +198,7 @@ export default function Reflections() {
                   id="reflection-session"
                   value={selectedSessionId}
                   onChange={(e) => setSelectedSessionId(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                  className={fieldClasses({ className: "h-11" })}
                 >
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>

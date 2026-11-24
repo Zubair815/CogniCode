@@ -220,7 +220,7 @@ export default function Landing() {
 
         {/* Product Preview */}
         <section id="preview" className="mx-auto max-w-5xl px-4 pb-16 md:px-6 md:pb-20">
-          <div className="overflow-hidden rounded-2xl border border-line bg-canvas">
+          <div className="overflow-hidden rounded-2xl border border-line bg-canvas shadow-popover">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-sidebar px-4 py-2.5 text-xs">
               <Logo size={20} withWordmark />
 

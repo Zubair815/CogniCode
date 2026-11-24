@@ -59,7 +59,7 @@ export default function MessageList({
                   type="button"
                   disabled={disabled}
                   onClick={() => onSelectPrompt(prompt)}
-                  className="rounded-xl border border-line-subtle bg-canvas px-3.5 py-3 text-left text-sm text-fg-secondary transition-colors duration-fast hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-line bg-canvas px-3.5 py-3 text-left text-sm text-fg-secondary shadow-sm transition-colors duration-fast hover:border-line-strong hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {prompt}
                 </button>
@@ -85,6 +85,7 @@ export default function MessageList({
             content={m.content}
             timestamp={m.timestamp}
             intent={m.intent}
+            status={m.status}
           />
         ))}
         {typing && <TypingIndicator />}

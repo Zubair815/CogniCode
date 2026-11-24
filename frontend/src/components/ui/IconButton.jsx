@@ -14,9 +14,9 @@ const sizes = {
 };
 
 const variants = {
-  ghost: "text-fg-secondary hover:text-fg hover:bg-hover",
-  secondary: "border border-line text-fg hover:bg-hover",
-  neutral: "bg-primary text-primary-on hover:bg-primary-hover",
+  ghost: "text-fg-secondary hover:text-fg hover:bg-hover active:bg-active",
+  secondary: "border border-line bg-canvas text-fg shadow-sm hover:bg-surface active:bg-surface-2",
+  neutral: "bg-primary text-primary-on shadow-sm hover:bg-primary-hover",
 };
 
 const IconButton = forwardRef(function IconButton(

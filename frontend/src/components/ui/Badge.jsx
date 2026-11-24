@@ -6,7 +6,7 @@
  */
 
 const TONES = {
-  neutral: "bg-surface text-fg-secondary",
+  neutral: "bg-surface-2 text-fg-secondary border border-line-subtle",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",

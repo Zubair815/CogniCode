@@ -187,7 +187,7 @@ export default function Dashboard({ role }) {
 
         {/* Summary metrics */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Dependency score</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {cdsData.score}
@@ -195,13 +195,13 @@ export default function Dashboard({ role }) {
             <div className="mt-1 text-xs text-fg-muted">{cdsData.trend}</div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Average hint level</div>
             <div className="mt-1 text-2xl font-semibold text-fg">{avgHintLevel}</div>
             <div className="mt-1 text-xs text-fg-muted">Scale 1–5</div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Sessions</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {sessions.length}
@@ -211,7 +211,7 @@ export default function Dashboard({ role }) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Quiz average</div>
             <div className="mt-1 text-2xl font-semibold text-fg">{quizAvgLabel}</div>
             <div className="mt-1 text-xs text-fg-muted">

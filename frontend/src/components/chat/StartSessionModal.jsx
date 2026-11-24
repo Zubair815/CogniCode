@@ -94,7 +94,7 @@ export default function StartSessionModal({ open, onClose, onCreated }) {
                   "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors duration-fast",
                   topic === s
                     ? "border-accent bg-accent-soft text-accent-fg"
-                    : "border-line-subtle bg-surface text-fg-secondary hover:bg-hover hover:text-fg",
+                    : "border-line-subtle bg-surface text-fg-secondary hover:border-line hover:bg-surface-2 hover:text-fg",
                 ].join(" ")}
               >
                 {s}

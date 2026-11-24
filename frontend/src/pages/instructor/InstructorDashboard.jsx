@@ -143,7 +143,7 @@ export default function InstructorDashboard() {
 
         {/* Summary metrics */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Average CDS</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {stats.avgCds}
@@ -159,7 +159,7 @@ export default function InstructorDashboard() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">High-risk students</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {stats.highRiskCount}
@@ -167,7 +167,7 @@ export default function InstructorDashboard() {
             <div className="mt-1 text-xs text-fg-muted">CDS &gt; 70</div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Average hint depth</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {stats.hintAvg}
@@ -175,7 +175,7 @@ export default function InstructorDashboard() {
             <div className="mt-1 text-xs text-fg-muted">Scale 1–5</div>
           </div>
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-4">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-4 shadow-sm">
             <div className="text-xs text-fg-secondary">Enrolled students</div>
             <div className="mt-1 text-2xl font-semibold text-fg">
               {stats.totalStudents}

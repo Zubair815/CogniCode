@@ -100,7 +100,7 @@ export default function InstructorCourses() {
           </Button>
         </div>
 
-        <div className="divide-y divide-line-subtle rounded-xl border border-line-subtle bg-canvas">
+        <div className="divide-y divide-line-subtle rounded-xl border border-line-subtle bg-canvas shadow-sm">
           {fetching ? (
             <div className="px-5 py-8 text-center text-sm text-fg-secondary">
               Loading courses…

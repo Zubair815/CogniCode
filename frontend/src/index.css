@@ -64,28 +64,28 @@
   color-scheme: light;
 
   --color-canvas: #FFFFFF;          /* main content background */
-  --color-sidebar: #F9F9F9;         /* sidebar / secondary panes */
-  --color-surface: #F4F4F4;         /* user message, subtle fills */
-  --color-surface-2: #ECECEC;       /* pressed / secondary fills */
+  --color-sidebar: #F4F5F7;         /* distinct sidebar / secondary pane */
+  --color-surface: #F1F3F5;         /* user message, subtle fills */
+  --color-surface-2: #E4E7EC;       /* pressed / progress track / secondary fills */
   --color-elevated: #FFFFFF;        /* composer, menus, dialogs */
-  --color-hover: rgba(0, 0, 0, 0.05);
-  --color-active: rgba(0, 0, 0, 0.08);
-  --color-overlay: rgba(0, 0, 0, 0.40);
+  --color-hover: rgba(13, 13, 13, 0.06);
+  --color-active: rgba(13, 13, 13, 0.10);
+  --color-overlay: rgba(15, 23, 42, 0.45);
 
-  --color-line: rgba(0, 0, 0, 0.12);
-  --color-line-subtle: rgba(0, 0, 0, 0.07);
-  --color-line-strong: rgba(0, 0, 0, 0.22);
+  --color-line: rgba(15, 23, 42, 0.16);
+  --color-line-subtle: rgba(15, 23, 42, 0.10);
+  --color-line-strong: rgba(15, 23, 42, 0.30);
 
   --color-fg: #0D0D0D;
-  --color-fg-secondary: #5D5D5D;
-  --color-fg-muted: #737373;        /* 4.7:1 on white — AA for small text */
+  --color-fg-secondary: #4B5563;
+  --color-fg-muted: #6B7280;        /* >= 4.8:1 on white */
   --color-fg-inverse: #FFFFFF;
 
   /* Accent: deep enough that white text passes AA (5.1:1). */
   --color-accent: #0E7C61;
   --color-accent-hover: #0B6A53;
   --color-accent-fg: #0E7C61;       /* accent-colored text and icons */
-  --color-accent-soft: rgba(16, 163, 127, 0.10);
+  --color-accent-soft: rgba(14, 124, 97, 0.10);
   --color-on-accent: #FFFFFF;
 
   /* Primary neutral action (ChatGPT-style solid button). */
@@ -94,20 +94,21 @@
   --color-on-primary: #FFFFFF;
 
   --color-success: #0E7C61;
-  --color-success-soft: rgba(16, 163, 127, 0.10);
-  --color-warning: #9A6200;
-  --color-warning-soft: rgba(183, 121, 31, 0.12);
-  --color-danger: #C62828;
-  --color-danger-soft: rgba(211, 47, 47, 0.08);
+  --color-success-soft: rgba(14, 124, 97, 0.10);
+  --color-warning: #B45309;
+  --color-warning-soft: rgba(217, 119, 6, 0.10);
+  --color-danger: #DC2626;
+  --color-danger-hover: #B91C1C;
+  --color-danger-soft: rgba(220, 38, 38, 0.08);
 
-  --color-code-bg: #F7F7F8;
-  --color-code-header: #ECECEC;
+  --color-code-bg: #F6F8FA;
+  --color-code-header: #EAECEF;
   --color-focus: #0E7C61;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-composer: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
-  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.06);
-  --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-composer: 0 1px 3px rgba(15, 23, 42, 0.06), 0 6px 20px rgba(15, 23, 42, 0.06);
+  --shadow-popover: 0 8px 24px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --shadow-dialog: 0 20px 48px rgba(15, 23, 42, 0.18);
 
   /* Legacy variable aliases for backward compatibility */
   --bg: var(--color-canvas);
@@ -168,6 +169,7 @@
   --color-warning: #E5B567;
   --color-warning-soft: rgba(229, 181, 103, 0.14);
   --color-danger: #F28B82;
+  --color-danger-hover: #F5A39B;
   --color-danger-soft: rgba(242, 139, 130, 0.12);
 
   --color-code-bg: #171717;

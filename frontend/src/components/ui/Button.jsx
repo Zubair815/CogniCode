@@ -24,11 +24,11 @@ const sizes = {
 };
 
 const variants = {
-  primary: "bg-accent text-accent-on hover:bg-accent-hover",
-  neutral: "bg-primary text-primary-on hover:bg-primary-hover",
-  secondary: "border border-line bg-canvas text-fg hover:bg-hover",
-  ghost: "text-fg-secondary hover:text-fg hover:bg-hover",
-  danger: "bg-danger text-white hover:opacity-90 dark:text-fg-inverse",
+  primary: "bg-accent text-accent-on shadow-sm hover:bg-accent-hover",
+  neutral: "bg-primary text-primary-on shadow-sm hover:bg-primary-hover",
+  secondary: "border border-line bg-canvas text-fg shadow-sm hover:bg-surface active:bg-surface-2",
+  ghost: "text-fg-secondary hover:text-fg hover:bg-hover active:bg-active",
+  danger: "bg-danger text-white shadow-sm hover:bg-danger-hover dark:text-fg-inverse",
 };
 
 function buttonClasses({ variant = "primary", size = "md", fullWidth = false, className = "" } = {}) {

@@ -7,6 +7,7 @@ import Badge from "../../components/ui/Badge.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Card from "../../components/ui/Card.jsx";
 import EmptyState from "../../components/ui/EmptyState.jsx";
+import { fieldClasses } from "../../components/ui/Input.jsx";
 import { chatService } from "../../services/chatService.js";
 import { quizService } from "../../services/quizService.js";
 import { ROUTES } from "../../constants/routes.js";
@@ -171,7 +172,7 @@ export default function Quiz() {
                     id="quiz-session"
                     value={selectedSessionId}
                     onChange={(e) => setSelectedSessionId(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                    className={fieldClasses({ className: "h-11" })}
                   >
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -204,7 +205,7 @@ export default function Quiz() {
                         const isGradedWrong =
                           Boolean(feedbackForCurrent) && selected && !feedbackForCurrent.is_correct;
 
-                        let cls = "border-line-subtle bg-canvas hover:bg-hover";
+                        let cls = "border-line bg-canvas hover:border-line-strong hover:bg-surface";
                         if (selected && !feedbackForCurrent) {
                           cls = "border-accent bg-accent-soft text-fg font-medium";
                         } else if (feedbackForCurrent && isGradedCorrect) {

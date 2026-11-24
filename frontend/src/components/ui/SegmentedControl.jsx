@@ -23,7 +23,7 @@ export default function SegmentedControl({ options, value, onChange, label, size
       role="radiogroup"
       aria-label={label}
       className={[
-        "inline-flex gap-0.5 rounded-lg bg-surface p-0.5",
+        "inline-flex gap-0.5 rounded-lg border border-line-subtle bg-surface p-0.5",
         fullWidth ? "flex w-full" : "",
         className,
       ].join(" ")}
@@ -42,10 +42,12 @@ export default function SegmentedControl({ options, value, onChange, label, size
             onClick={() => onChange(opt.value)}
             onKeyDown={(e) => onKeyDown(e, idx)}
             className={[
-              "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors duration-fast",
+              "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-all duration-fast",
               size === "sm" ? "h-7 px-2.5 text-[13px]" : "h-8 px-3 text-sm",
               fullWidth ? "flex-1" : "",
-              active ? "bg-elevated text-fg shadow-sm" : "text-fg-secondary hover:text-fg",
+              active
+                ? "bg-elevated text-fg border border-line-subtle shadow-sm dark:bg-surface-2"
+                : "border border-transparent text-fg-secondary hover:text-fg",
             ].join(" ")}
           >
             {Icon && <Icon size={14} aria-hidden="true" />}

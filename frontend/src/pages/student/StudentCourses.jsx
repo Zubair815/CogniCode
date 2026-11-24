@@ -104,7 +104,7 @@ export default function StudentCourses() {
           </div>
         </div>
 
-        <div className="divide-y divide-line-subtle rounded-xl border border-line-subtle bg-canvas">
+        <div className="divide-y divide-line-subtle rounded-xl border border-line-subtle bg-canvas shadow-sm">
           {loading ? (
             <div className="px-5 py-8 text-center text-sm text-fg-secondary">
               Loading courses…

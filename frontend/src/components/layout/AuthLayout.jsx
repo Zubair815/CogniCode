@@ -47,7 +47,7 @@ export default function AuthLayout({ title, subtitle, children }) {
             </div>
           )}
 
-          <div className="rounded-xl border border-line-subtle bg-canvas p-5 sm:p-6">
+          <div className="rounded-xl border border-line-subtle bg-canvas p-5 shadow-sm sm:p-6">
             {children}
           </div>
         </div>

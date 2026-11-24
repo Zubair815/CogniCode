@@ -56,7 +56,11 @@ export default {
         brand: v("color-brand"),
         success: { DEFAULT: v("color-success"), soft: v("color-success-soft") },
         warning: { DEFAULT: v("color-warning"), soft: v("color-warning-soft") },
-        danger: { DEFAULT: v("color-danger"), soft: v("color-danger-soft") },
+        danger: {
+          DEFAULT: v("color-danger"),
+          hover: v("color-danger-hover"),
+          soft: v("color-danger-soft"),
+        },
         code: { DEFAULT: v("color-code-bg"), header: v("color-code-header") },
       },
       borderRadius: {

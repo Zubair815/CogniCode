@@ -88,7 +88,7 @@ export default function Modal({ open, onClose, title, description, children, foo
         tabIndex={-1}
         className={[
           "relative flex flex-col w-full bg-elevated text-fg shadow-dialog animate-pop-in focus:outline-none",
-          "rounded-t-2xl sm:rounded-2xl border border-line-subtle",
+          "rounded-t-2xl sm:rounded-2xl border border-line",
           "max-h-[88dvh]",
           SIZES[size] || SIZES.md,
         ].join(" ")}

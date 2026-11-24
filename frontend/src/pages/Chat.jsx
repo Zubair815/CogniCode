@@ -139,7 +139,7 @@ export default function Chat() {
                       type="button"
                       disabled={disabled}
                       onClick={() => send(opt)}
-                      className="h-7 w-7 rounded-md border border-line bg-canvas text-xs font-semibold text-fg hover:bg-hover disabled:opacity-40"
+                      className="h-7 w-7 rounded-md border border-line bg-canvas text-xs font-semibold text-fg shadow-sm hover:border-accent hover:bg-surface disabled:opacity-40"
                     >
                       {opt}
                     </button>

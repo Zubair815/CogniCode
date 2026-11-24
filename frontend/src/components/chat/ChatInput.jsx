@@ -56,8 +56,8 @@ export default function ChatInput({
       <div className="mx-auto w-full max-w-content min-w-0">
         <div
           className={[
-            "rounded-3xl border border-line bg-surface px-4 pb-2.5 pt-3 shadow-composer transition-colors duration-fast",
-            "focus-within:border-line-strong focus-within:bg-elevated",
+            "rounded-3xl border border-line bg-elevated px-4 pb-2.5 pt-3 shadow-composer transition-colors duration-fast",
+            "focus-within:border-line-strong",
             disabled ? "opacity-75" : "",
           ].join(" ")}
         >
@@ -79,7 +79,7 @@ export default function ChatInput({
                 type="button"
                 disabled={disabled || busy}
                 onClick={insertCodeFence}
-                className="rounded-md px-2 py-1 text-xs font-medium text-fg-secondary hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                className="rounded-md border border-line-subtle bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary hover:border-line hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
               >
                 Code block
               </button>
@@ -88,7 +88,7 @@ export default function ChatInput({
                 type="button"
                 disabled={disabled || busy}
                 onClick={() => onSend("Can you give me a progressive hint?")}
-                className="rounded-md px-2 py-1 text-xs font-medium text-fg-secondary hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                className="rounded-md border border-line-subtle bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary hover:border-line hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
               >
                 Request hint
               </button>

@@ -81,7 +81,7 @@ export default function Menu({ trigger, children, placement = "bottom-end", clas
           id={menuId}
           role="menu"
           className={[
-            "absolute z-popover min-w-[220px] rounded-xl bg-elevated p-1.5 shadow-popover animate-pop-in",
+            "absolute z-popover min-w-[220px] rounded-xl border border-line bg-elevated p-1.5 shadow-popover animate-pop-in",
             PLACEMENTS[placement] || PLACEMENTS["bottom-end"],
             menuClassName,
           ].join(" ")}
