@@ -189,11 +189,26 @@ export default function useWebSocket({
       manualCloseRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       const socket = socketRef.current;
-      if (socket && socket.readyState <= 1) {
-        try {
-          socket.close(1000, "component_unmount");
-        } catch {
-          // ignore
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onclose = null;
+        socket.onerror = null;
+        if (socket.readyState === WebSocket.OPEN) {
+          try {
+            socket.close(1000, "component_unmount");
+          } catch {
+            // ignore
+          }
+        } else if (socket.readyState === WebSocket.CONNECTING) {
+          // Avoid browser console error when closing a connecting socket in StrictMode
+          socket.onopen = () => {
+            try {
+              socket.close(1000, "component_unmount");
+            } catch {
+              // ignore
+            }
+          };
         }
       }
       socketRef.current = null;
@@ -201,10 +216,11 @@ export default function useWebSocket({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // --- Send a chat message ---
-  const sendMessage = useCallback((content) => {
+  // --- Send a chat or code_submission message ---
+  const sendMessage = useCallback((content, type = "chat") => {
     if (!content || !content.trim()) return false;
-    const payload = { type: "chat", content: content.trim() };
+    const msgType = type === "code_submission" ? "code_submission" : "chat";
+    const payload = { type: msgType, content: content.trim() };
 
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {

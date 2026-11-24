@@ -18,7 +18,14 @@ import { ROUTES } from "./constants/routes.js";
 
 
 function ProtectedRoute({ requiredRole, children }) {
-  const { user } = useAuth();
+  const { user, bootstrapped } = useAuth();
+  if (!bootstrapped) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[color:var(--bg)] text-sm text-[color:var(--text-muted)]">
+        Loading session…
+      </div>
+    );
+  }
   if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
   if (requiredRole && user.role !== requiredRole) {
     return (

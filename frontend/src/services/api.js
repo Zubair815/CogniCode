@@ -7,13 +7,34 @@
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const TOKEN_STORAGE_KEY = "cc_auth_token";
 
 let _token = null;
+try {
+  _token = sessionStorage.getItem(TOKEN_STORAGE_KEY) || null;
+} catch {
+  _token = null;
+}
 let _onUnauthorized = null;
 
-export function setToken(token) { _token = token || null; }
+export function setToken(token) {
+  _token = token || null;
+  try {
+    if (_token) sessionStorage.setItem(TOKEN_STORAGE_KEY, _token);
+    else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
 export function getToken() { return _token; }
-export function clearToken() { _token = null; }
+export function clearToken() {
+  _token = null;
+  try {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 export function onUnauthorized(cb) { _onUnauthorized = cb; }
 
 const api = axios.create({

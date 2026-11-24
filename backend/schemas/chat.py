@@ -98,6 +98,7 @@ class WSServerResponse(BaseModel):
     type: Literal["response"] = "response"
     content: str
     intent: Optional[str] = None
+    attempt_detected: bool = False
     interaction_id: Optional[UUID] = None
     elapsed_seconds: Optional[float] = None
 

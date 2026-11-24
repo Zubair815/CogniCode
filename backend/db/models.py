@@ -380,11 +380,11 @@ class Reflection(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "length(learned_today) >= 100",
+            "length(learned_today) >= 20",
             name="reflection_learned_min_length",
         ),
         CheckConstraint(
-            "length(mistake_to_avoid) >= 100",
+            "length(mistake_to_avoid) >= 20",
             name="reflection_mistake_min_length",
         ),
     )

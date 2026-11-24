@@ -6,6 +6,7 @@ Purpose: Common interface for LLM providers (Claude, Ollama).
          signature so the agent layer is provider-agnostic.
 
 Created: 10/10/2026
+Updated: 17/11/2026
 """
 
 from abc import ABC, abstractmethod
@@ -40,15 +41,18 @@ class LLMClient(ABC):
         user_message: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        messages: Optional[list[dict[str, str]]] = None,
     ) -> LLMResponse:
         """
-        Generate a completion.
+        Generate a completion using native multi-turn messages when provided.
 
         Args:
             system_prompt: Instructions for the model.
-            user_message: The student's message.
+            user_message: The latest student message (used if `messages` is None).
             max_tokens: Response length limit.
             temperature: Sampling randomness (0.0-1.0).
+            messages: Optional full conversation turn list
+                      [{"role": "user"|"assistant", "content": "..."}].
 
         Returns:
             Normalized LLMResponse.
@@ -66,4 +70,5 @@ class LLMClient(ABC):
 
 class LLMError(Exception):
     """Raised when an LLM provider fails to generate a response."""
+
     pass

@@ -14,6 +14,7 @@
  * Updated: 10/10/2026
  */
 
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App.jsx";
@@ -22,9 +23,11 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")).render(
-  <ThemeProvider>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </ThemeProvider>
+  <StrictMode>
+    <ThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ThemeProvider>
+  </StrictMode>
 );
