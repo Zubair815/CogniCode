@@ -1,14 +1,13 @@
 """
 Module: backend.llm.claude_client
-Purpose: Anthropic Claude API client.
-         Included for production use — not required in development
-         if OLLAMA is being used. Activated by setting LLM_PROVIDER=claude
-         and providing LLM_API_KEY.
+Purpose: Anthropic Claude API client with native multi-turn message support.
 
 Created: 10/10/2026
+Updated: 17/11/2026
 """
 
 import time
+from typing import Optional
 
 from config import get_settings
 from llm.base import LLMClient, LLMError, LLMResponse
@@ -27,11 +26,11 @@ class ClaudeClient(LLMClient):
         self.model = model or settings.llm_model
 
         if not self.api_key:
-            # Client is instantiated but unusable without a key.
             self._client = None
         else:
             try:
                 from anthropic import AsyncAnthropic
+
                 self._client = AsyncAnthropic(api_key=self.api_key)
             except ImportError as exc:
                 raise LLMError("anthropic SDK not installed.") from exc
@@ -42,10 +41,17 @@ class ClaudeClient(LLMClient):
         user_message: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        messages: Optional[list[dict[str, str]]] = None,
     ) -> LLMResponse:
-        """Send a message to Claude and return the response."""
+        """Send a multi-turn conversation to Claude and return the response."""
         if self._client is None:
             raise LLMError("Claude API key is not configured.")
+
+        chat_messages = (
+            messages
+            if messages
+            else [{"role": "user", "content": user_message}]
+        )
 
         started = time.perf_counter()
         try:
@@ -54,7 +60,7 @@ class ClaudeClient(LLMClient):
                 max_tokens=max_tokens,
                 temperature=temperature,
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
+                messages=chat_messages,
             )
         except Exception as exc:
             raise LLMError(f"Claude API error: {exc}") from exc

@@ -65,6 +65,7 @@ export default function MessageList({ messages = [], typing = false }) {
           content={m.content}
           timestamp={m.timestamp}
           intent={m.intent}
+          attemptDetected={m.attemptDetected}
         />
       ))}
       {typing && <TypingIndicator />}

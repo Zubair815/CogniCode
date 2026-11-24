@@ -46,7 +46,11 @@ export default function useChatSession(sessionId) {
         setSession({ id: history.session_id, topic: history.topic });
 
         const flat = [];
+        let hasAttemptInSession = false;
         for (const item of history.interactions) {
+          if (item.attempt_detected) {
+            hasAttemptInSession = true;
+          }
           flat.push({
             id: `${item.id}-s`,
             role: "student",
@@ -58,9 +62,11 @@ export default function useChatSession(sessionId) {
             role: "assistant",
             content: item.response,
             intent: item.intent,
+            attemptDetected: Boolean(item.attempt_detected),
             timestamp: item.timestamp,
           });
         }
+        setAttemptDetected(hasAttemptInSession);
         setMessages(flat);
       } catch (err) {
         if (isCancel(err) || cancelled) return;
@@ -97,6 +103,7 @@ export default function useChatSession(sessionId) {
       role: "assistant",
       content: payload.content,
       intent: payload.intent,
+      attemptDetected: Boolean(payload.attempt_detected),
       timestamp: new Date().toISOString(),
     };
 
@@ -140,7 +147,7 @@ export default function useChatSession(sessionId) {
   }, [lastError]);
 
   const send = useCallback(
-    (content) => {
+    (content, type = "chat") => {
       const text = (content || "").trim();
       if (!text) return;
       pendingRef.current = {
@@ -148,7 +155,7 @@ export default function useChatSession(sessionId) {
         content: text,
         timestamp: new Date().toISOString(),
       };
-      wsSend(text);
+      wsSend(text, type);
     },
     [wsSend]
   );

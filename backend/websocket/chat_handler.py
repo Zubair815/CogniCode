@@ -86,7 +86,11 @@ def _recent_history(db: DBSession, session_id: UUID, limit: int = 6):
 
     history = []
     for row in rows:
-        history.append({"role": "student", "content": row.message})
+        history.append({
+            "role": "student",
+            "content": row.message,
+            "attempt_detected": bool(row.attempt_detected),
+        })
         history.append({"role": "assistant", "content": row.response})
     return history
 
@@ -197,7 +201,7 @@ async def chat_websocket(
                 })
                 break
 
-            # --- Chat / code_submission handled the same way for V1 ---
+            # --- Chat / code_submission ---
             if msg_type in ("chat", "code_submission"):
                 content = (raw.get("content") or "").strip()
                 if not content:
@@ -207,7 +211,17 @@ async def chat_websocket(
                         "message": "Message cannot be empty.",
                     })
                     continue
-                await _handle_chat(session_id, session, user, content, websocket, db)
+                if msg_type == "code_submission" and "```" not in content:
+                    content = f"```\n{content}\n```"
+                await _handle_chat(
+                    session_id,
+                    session,
+                    user,
+                    content,
+                    websocket,
+                    db,
+                    message_type=msg_type,
+                )
                 continue
 
             # --- Unknown type ---
@@ -233,6 +247,7 @@ async def _handle_chat(
     content: str,
     websocket: WebSocket,
     db: DBSession,
+    message_type: str = "chat",
 ):
     """
     Process one chat message end-to-end.
@@ -240,12 +255,37 @@ async def _handle_chat(
     Steps:
         1. Notify client that the assistant is thinking.
         2. Build agent state from history + new message.
-        3. Classify intent (Conversation Manager).
+        3. Classify intent & attempt state (Conversation Manager).
         4. Generate response (Socratic Tutor, calls LLM).
-        5. Persist the interaction.
+        5. Persist the interaction & behavioral signals.
         6. Send the response back.
     """
     await manager.send_to(session_id, websocket, {"type": "typing"})
+
+    # Check prior interactions for time gap & cumulative attempt status
+    last_interaction = (
+        db.query(Interaction)
+        .filter(Interaction.session_id == session.id)
+        .order_by(Interaction.timestamp.desc())
+        .first()
+    )
+    prior_attempt_exists = (
+        db.query(Interaction.id)
+        .filter(
+            Interaction.session_id == session.id,
+            Interaction.attempt_detected.is_(True),
+        )
+        .first()
+        is not None
+    )
+
+    now = datetime.now(timezone.utc)
+    time_since_last: int | None = None
+    if last_interaction and last_interaction.timestamp:
+        last_ts = last_interaction.timestamp
+        if last_ts.tzinfo is None:
+            last_ts = last_ts.replace(tzinfo=timezone.utc)
+        time_since_last = max(0, int((now - last_ts).total_seconds()))
 
     state = new_state(
         student_id=str(user.id),
@@ -254,9 +294,11 @@ async def _handle_chat(
         message=content,
         history=_recent_history(db, session.id),
         preferred_language=user.preferred_language or "Python",
+        message_type="code_submission" if message_type == "code_submission" else "chat",
+        prior_attempt_exists=prior_attempt_exists,
     )
 
-    # Classify intent
+    # Classify intent & attempt status
     state = _conversation_manager.process(state)
 
     # Generate response
@@ -272,6 +314,9 @@ async def _handle_chat(
         return
 
     response_text = state.get("response") or "(no response)"
+    attempt_detected = bool(state.get("attempt_detected", False))
+    current_turn_attempt = bool(state.get("current_turn_attempt", False))
+    intent = state.get("intent")
 
     # Persist interaction
     interaction = Interaction(
@@ -279,15 +324,20 @@ async def _handle_chat(
         student_id=user.id,
         message=content,
         response=response_text,
-        intent=_map_intent(state.get("intent")),
-        attempt_detected=state.get("attempt_detected", False),
+        intent=_map_intent(intent),
+        attempt_detected=attempt_detected,
         hint_level_given=None,
+        time_since_last=time_since_last,
     )
     db.add(interaction)
 
-    # Update session aggregates
-    if state.get("intent") == "code_request":
+    # Update session behavioral signals for CDS computation
+    if intent == "code_request" and not current_turn_attempt:
         session.solution_requests = (session.solution_requests or 0) + 1
+    if intent == "debug" and current_turn_attempt:
+        session.debugging_attempts = (session.debugging_attempts or 0) + 1
+    if prior_attempt_exists and current_turn_attempt:
+        session.retry_count = (session.retry_count or 0) + 1
 
     try:
         db.commit()
@@ -306,8 +356,8 @@ async def _handle_chat(
     await manager.send_to(session_id, websocket, {
         "type": "response",
         "content": response_text,
-        "intent": state.get("intent"),
-        "attempt_detected": state.get("attempt_detected", False),
+        "intent": intent,
+        "attempt_detected": attempt_detected,
         "interaction_id": str(interaction.id),
         "elapsed_seconds": state.get("metadata", {}).get("elapsed_seconds"),
     })

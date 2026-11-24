@@ -11,16 +11,19 @@ from typing import Any, Literal, TypedDict
 Intent = Literal["concept_question", "code_request", "debug", "quiz", "other"]
 
 
-class ChatMessage(TypedDict):
+class ChatMessage(TypedDict, total=False):
     """A single message in the conversation history."""
+
     role: Literal["student", "assistant"]
     content: str
+    attempt_detected: bool
 
 
 class AgentState(TypedDict, total=False):
     """
     Shared state passed between agents.
     """
+
     # --- Identifiers ---
     student_id: str
     session_id: str
@@ -31,9 +34,12 @@ class AgentState(TypedDict, total=False):
 
     # --- Current interaction ---
     message: str
+    message_type: Literal["chat", "code_submission"]
     intent: Intent
     response: str
     attempt_detected: bool
+    current_turn_attempt: bool
+    prior_attempt_exists: bool
 
     # --- Context ---
     history: list[ChatMessage]
@@ -49,6 +55,8 @@ def new_state(
     message: str,
     history: list[ChatMessage] | None = None,
     preferred_language: str = "Python",
+    message_type: Literal["chat", "code_submission"] = "chat",
+    prior_attempt_exists: bool = False,
 ) -> AgentState:
     """Build a fresh AgentState for a single interaction."""
     return AgentState(
@@ -56,8 +64,11 @@ def new_state(
         session_id=session_id,
         topic=topic,
         message=message,
+        message_type=message_type,
         history=history or [],
         preferred_language=preferred_language,
-        attempt_detected=False,  # Default is False, detector will update it
+        attempt_detected=prior_attempt_exists,
+        current_turn_attempt=False,
+        prior_attempt_exists=prior_attempt_exists,
         metadata={},
     )

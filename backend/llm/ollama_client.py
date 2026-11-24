@@ -1,16 +1,15 @@
 """
 Module: backend.llm.ollama_client
 Purpose: Ollama HTTP client for local LLM inference.
-         Uses the /api/chat endpoint with streaming disabled
-         (simpler for V1; streaming will come in a later sprint).
-
-         No external dependency — uses httpx which is already
-         in requirements.txt.
+         Uses native multi-turn messages on /api/chat so the model
+         maintains real conversation context without repeating history.
 
 Created: 10/10/2026
+Updated: 17/11/2026
 """
 
 import time
+from typing import Optional
 
 import httpx
 
@@ -21,9 +20,6 @@ from llm.base import LLMClient, LLMError, LLMResponse
 class OllamaClient(LLMClient):
     """
     Ollama client for a locally hosted model (e.g., llama3.2).
-
-    The model must be pulled first: `ollama pull llama3.2`.
-    The service must be running: `ollama serve` (or the desktop app).
     """
 
     def __init__(
@@ -35,7 +31,6 @@ class OllamaClient(LLMClient):
         settings = get_settings()
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
         self.model = model or settings.ollama_model
-        # Local models can be slow on first request (model load).
         self.timeout = timeout_seconds
 
     async def generate(
@@ -44,18 +39,24 @@ class OllamaClient(LLMClient):
         user_message: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        messages: Optional[list[dict[str, str]]] = None,
     ) -> LLMResponse:
-        """Send a chat request to Ollama and return the response."""
+        """Send a multi-turn chat request to Ollama and return the response."""
+        chat_messages = [{"role": "system", "content": system_prompt}]
+        if messages:
+            chat_messages.extend(messages)
+        else:
+            chat_messages.append({"role": "user", "content": user_message})
+
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+            "messages": chat_messages,
             "stream": False,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
+                "repeat_penalty": 1.18,
+                "top_p": 0.9,
             },
         }
 
@@ -69,7 +70,9 @@ class OllamaClient(LLMClient):
                 response.raise_for_status()
                 data = response.json()
         except httpx.TimeoutException as exc:
-            raise LLMError("The AI is taking longer than usual. Please try again.") from exc
+            raise LLMError(
+                "The AI is taking longer than usual. Please try again."
+            ) from exc
         except httpx.ConnectError as exc:
             raise LLMError(
                 "Local AI service is not reachable. Ensure Ollama is running."

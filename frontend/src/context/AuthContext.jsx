@@ -6,12 +6,31 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authService } from "../services/authService.js";
-import { onUnauthorized, setToken, clearToken } from "../services/api.js";
+import { onUnauthorized, setToken, getToken, clearToken } from "../services/api.js";
 
 const AuthContext = createContext(null);
+const USER_STORAGE_KEY = "cc_auth_user";
+
+function loadStoredUser() {
+  try {
+    const raw = sessionStorage.getItem(USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredUser(u) {
+  try {
+    if (u) sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(u));
+    else sessionStorage.removeItem(USER_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => (getToken() ? loadStoredUser() : null));
   const [bootstrapped, setBootstrapped] = useState(false);
 
   // When the API fires 401, clear user state so protected routes
@@ -19,18 +38,44 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     onUnauthorized(() => {
       setUser(null);
+      saveStoredUser(null);
       clearToken();
     });
   }, []);
 
   useEffect(() => {
-    setBootstrapped(true);
+    let active = true;
+    const token = getToken();
+    if (!token) {
+      setBootstrapped(true);
+      return;
+    }
+    authService
+      .me()
+      .then((freshUser) => {
+        if (!active) return;
+        setUser(freshUser);
+        saveStoredUser(freshUser);
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+        saveStoredUser(null);
+        clearToken();
+      })
+      .finally(() => {
+        if (active) setBootstrapped(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = useCallback(async ({ identifier, password }) => {
     const data = await authService.login({ identifier, password });
     setToken(data.access_token);
     setUser(data.user);
+    saveStoredUser(data.user);
     return data.user;
   }, []);
 
@@ -38,6 +83,7 @@ export function AuthProvider({ children }) {
     const data = await authService.register(payload);
     setToken(data.access_token);
     setUser(data.user);
+    saveStoredUser(data.user);
     return data.user;
   }, []);
 
@@ -52,6 +98,7 @@ export function AuthProvider({ children }) {
       // ignore — we still clear local state
     }
     clearToken();
+    saveStoredUser(null);
     setUser(null);
   }, []);
 

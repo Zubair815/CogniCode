@@ -33,8 +33,9 @@ jobs:
       - name: Lint with ruff
         run: |
           pip install ruff
-          ruff check . || true
+          ruff check .
 
       - name: Run tests
+        working-directory: .
         run: |
-          pytest tests/ -v || echo "No tests yet"
+          pytest tests/ -v

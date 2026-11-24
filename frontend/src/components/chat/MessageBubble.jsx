@@ -28,7 +28,13 @@ function formatTime(iso) {
   }
 }
 
-export default function MessageBubble({ role, content, timestamp, intent }) {
+export default function MessageBubble({
+  role,
+  content,
+  timestamp,
+  intent,
+  attemptDetected,
+}) {
   const isStudent = role === "student";
 
   return (
@@ -66,6 +72,20 @@ export default function MessageBubble({ role, content, timestamp, intent }) {
         >
           {content}
         </div>
+
+        {!isStudent && typeof attemptDetected === "boolean" && (
+          <div className="mt-1.5">
+            {attemptDetected ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[color:var(--success)]/15 text-[color:var(--success)] border border-[color:var(--success)]/25">
+                🔓 Attempt verified · Guided mode
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[color:var(--warning)]/15 text-[color:var(--warning)] border border-[color:var(--warning)]/25">
+                💡 Attempt needed to unlock hints
+              </span>
+            )}
+          </div>
+        )}
 
         <div
           className={[
