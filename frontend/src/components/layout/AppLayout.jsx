@@ -42,7 +42,7 @@ import { ROUTES, chatRoute } from "../../constants/routes.js";
 
 export default function AppLayout({
   children,
-  activeCds = 32,
+  activeCds = 0,
   fullHeight = false,
   headerSlot = null,
 }) {

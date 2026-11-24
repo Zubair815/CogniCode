@@ -7,10 +7,10 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
 const TONES = {
-  danger: { cls: "border border-danger/20 bg-danger-soft text-danger", Icon: AlertCircle },
-  warning: { cls: "border border-warning/20 bg-warning-soft text-warning", Icon: AlertTriangle },
+  danger: { cls: "border border-danger-line bg-danger-soft text-danger", Icon: AlertCircle },
+  warning: { cls: "border border-warning-line bg-warning-soft text-warning", Icon: AlertTriangle },
   info: { cls: "border border-line-subtle bg-surface text-fg-secondary", Icon: Info },
-  success: { cls: "border border-success/20 bg-success-soft text-success", Icon: CheckCircle2 },
+  success: { cls: "border border-success-line bg-success-soft text-success", Icon: CheckCircle2 },
 };
 
 export default function Alert({ tone = "danger", title, children, action, onDismiss, className = "" }) {

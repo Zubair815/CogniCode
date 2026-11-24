@@ -95,11 +95,14 @@
 
   --color-success: #0E7C61;
   --color-success-soft: rgba(14, 124, 97, 0.10);
+  --color-success-line: rgba(14, 124, 97, 0.28);
   --color-warning: #B45309;
   --color-warning-soft: rgba(217, 119, 6, 0.10);
+  --color-warning-line: rgba(180, 83, 9, 0.28);
   --color-danger: #DC2626;
   --color-danger-hover: #B91C1C;
   --color-danger-soft: rgba(220, 38, 38, 0.08);
+  --color-danger-line: rgba(220, 38, 38, 0.25);
 
   --color-code-bg: #F6F8FA;
   --color-code-header: #EAECEF;
@@ -166,11 +169,14 @@
 
   --color-success: #3CCB9F;
   --color-success-soft: rgba(16, 163, 127, 0.16);
+  --color-success-line: rgba(60, 203, 159, 0.28);
   --color-warning: #E5B567;
   --color-warning-soft: rgba(229, 181, 103, 0.14);
+  --color-warning-line: rgba(229, 181, 103, 0.28);
   --color-danger: #F28B82;
   --color-danger-hover: #F5A39B;
   --color-danger-soft: rgba(242, 139, 130, 0.12);
+  --color-danger-line: rgba(242, 139, 130, 0.28);
 
   --color-code-bg: #171717;
   --color-code-header: #2A2A2A;

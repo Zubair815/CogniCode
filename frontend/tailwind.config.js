@@ -54,12 +54,21 @@ export default {
           on: v("color-on-primary"),
         },
         brand: v("color-brand"),
-        success: { DEFAULT: v("color-success"), soft: v("color-success-soft") },
-        warning: { DEFAULT: v("color-warning"), soft: v("color-warning-soft") },
+        success: {
+          DEFAULT: v("color-success"),
+          soft: v("color-success-soft"),
+          line: v("color-success-line"),
+        },
+        warning: {
+          DEFAULT: v("color-warning"),
+          soft: v("color-warning-soft"),
+          line: v("color-warning-line"),
+        },
         danger: {
           DEFAULT: v("color-danger"),
           hover: v("color-danger-hover"),
           soft: v("color-danger-soft"),
+          line: v("color-danger-line"),
         },
         code: { DEFAULT: v("color-code-bg"), header: v("color-code-header") },
       },
